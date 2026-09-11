@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rio Claro (SP) - Mapa de Internações por Câncer de Mama (2021-2025)</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --surface-dark: rgba(15, 23, 42, 0.90);
+            --surface-card: rgba(30, 41, 59, 0.78);
+            --border-glass: rgba(255, 255, 255, 0.12);
+            --border-accent: rgba(244, 63, 94, 0.45);
+            
+            --brand-pink: #f43f5e;
+            --brand-pink-gradient: linear-gradient(135deg, #fb7185 0%, #e11d48 50%, #9f1239 100%);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-glass: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Overlay Glassmorphism Sidebar */
+        .sidebar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            bottom: 16px;
+            width: 440px;
+            max-width: calc(100vw - 32px);
+            background: var(--surface-dark);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-glass);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-460px);
+        }
+
+        .sidebar-header {
+            padding: 22px 24px;
+            background: linear-gradient(180deg, rgba(244, 63, 94, 0.18) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border-glass);
+            position: relative;
+        }
+
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(244, 63, 94, 0.22);
+            border: 1px solid rgba(244, 63, 94, 0.45);
+            color: #fca5a5;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin-bottom: 8px;
+        }
+
+        .badge-pill i {
+            font-size: 14px;
+            color: #fb7185;
+        }
+
+        .sidebar-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.25;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-header p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            top: 20px;
+            right: -48px;
+            width: 44px;
+            height: 44px;
+            background: var(--surface-dark);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-left: none;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 4px 0 16px rgba(0,0,0,0.35);
+            z-index: 1001;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover {
+            background: var(--brand-pink);
+            color: #fff;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 18px 22px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 3px;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .kpi-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-accent);
+        }
+
+        .kpi-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .kpi-title i {
+            font-size: 15px;
+            color: var(--brand-pink);
+        }
+
+        .kpi-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .kpi-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: var(--surface-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 15px;
+        }
+
+        .section-header {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .section-header i {
+            color: var(--brand-pink);
+            font-size: 16px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 12px;
+        }
+
+        .chip {
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-glass);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .chip:hover {
+            background: rgba(244, 63, 94, 0.18);
+            color: #fff;
+            border-color: rgba(244, 63, 94, 0.45);
+        }
+
+        .chip.active {
+            background: var(--brand-pink-gradient);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35);
+        }
+
+        /* Layers Controls */
+        .layer-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .layer-toggle-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .layer-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .layer-info i {
+            font-size: 17px;
+            color: var(--brand-pink);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.18);
+            transition: .25s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--brand-pink);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+
+        /* Search input for neighborhoods */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            padding: 6px 10px;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .search-box i {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-size: 12px;
+            width: 100%;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Top Bairros List */
+        .bairro-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: var(--radius-sm);
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .bairro-item:hover {
+            background: rgba(244, 63, 94, 0.16);
+            border-color: rgba(244, 63, 94, 0.35);
+            transform: translateX(4px);
+        }
+
+        .bairro-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .bairro-count-badge {
+            background: rgba(244, 63, 94, 0.25);
+            color: #fca5a5;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 999px;
+        }
+
+        /* Basemap Selector Floating - 100% livre de API Key! */
+        .basemap-selector {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: var(--surface-dark);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 5px;
+            z-index: 1000;
+            display: flex;
+            gap: 4px;
+            box-shadow: var(--shadow-glass);
+        }
+
+        .basemap-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 7px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .basemap-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .basemap-btn.active {
+            background: var(--brand-pink-gradient);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(244, 63, 94, 0.3);
+        }
+
+        /* Custom Popup Leaflet */
+        .leaflet-popup-content-wrapper {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+            border: 1px solid rgba(244, 63, 94, 0.5) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7) !important;
+            backdrop-filter: blur(12px) !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 0 !important;
+            min-width: 270px;
+        }
+
+        .popup-card {
+            padding: 16px 18px;
+        }
+
+        .popup-header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .popup-tag {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #fb7185;
+            letter-spacing: 0.05em;
+        }
+
+        .popup-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-top: 2px;
+        }
+
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 7px;
+            font-size: 12px;
+        }
+
+        .popup-label {
+            color: var(--text-secondary);
+        }
+
+        .popup-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .leaflet-popup-tip {
+            background: #0f172a !important;
+            border: 1px solid rgba(244, 63, 94, 0.5) !important;
+        }
+
+        /* Tooltip customizado nos bairros */
+        .bairro-tooltip {
+            background: rgba(15, 23, 42, 0.92) !important;
+            border: 1px solid rgba(244, 63, 94, 0.6) !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            padding: 6px 10px !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .bairro-tooltip:before {
+            border-top-color: rgba(15, 23, 42, 0.92) !important;
+        }
+
+        /* Custom Marker Cluster Styles */
+        .marker-cluster-custom {
+            background: rgba(244, 63, 94, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 16px rgba(244, 63, 94, 0.6);
+            animation: pulse-ring 2.5s infinite;
+        }
+
+        .marker-cluster-inner {
+            width: 32px;
+            height: 32px;
+            background: var(--brand-pink-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 800;
+            font-size: 12px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.6); }
+            70% { box-shadow: 0 0 0 12px rgba(244, 63, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+        }
+
+        /* Legenda de Calor dos Bairros */
+        .map-legend {
+            position: absolute;
+            bottom: 24px;
+            right: 16px;
+            background: var(--surface-dark);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            z-index: 1000;
+            font-size: 11px;
+            box-shadow: var(--shadow-glass);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 175px;
+        }
+
+        .map-legend-title {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .legend-scale-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-primary);
+        }
+
+        .legend-color-box {
+            width: 16px;
+            height: 12px;
+            border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Map Container -->
+    <div id="map"></div>
+
+    <!-- Floating Basemap Selector (100% sem chaves de API) -->
+    <div class="basemap-selector">
+        <button class="basemap-btn active" onclick="setBasemap('light', this)">
+            <i class="ph ph-sun"></i> Claro
+        </button>
+        <button class="basemap-btn" onclick="setBasemap('dark', this)">
+            <i class="ph ph-moon"></i> Escuro
+        </button>
+        <button class="basemap-btn" onclick="setBasemap('satellite', this)">
+            <i class="ph ph-planet"></i> Satélite
+        </button>
+        <button class="basemap-btn" onclick="setBasemap('osm', this)">
+            <i class="ph ph-map-trifold"></i> Ruas
+        </button>
+    </div>
+
+    <!-- Floating Legend dos Bairros -->
+    <div class="map-legend">
+        <div class="map-legend-title">Casos por Bairro</div>
+        <div class="legend-scale-item">
+            <span class="legend-color-box" style="background: #881337;"></span>
+            <span>15+ casos (Muito Alta)</span>
+        </div>
+        <div class="legend-scale-item">
+            <span class="legend-color-box" style="background: #e11d48;"></span>
+            <span>10 - 14 casos (Alta)</span>
+        </div>
+        <div class="legend-scale-item">
+            <span class="legend-color-box" style="background: #f97316;"></span>
+            <span>6 - 9 casos (Média-Alta)</span>
+        </div>
+        <div class="legend-scale-item">
+            <span class="legend-color-box" style="background: #facc15;"></span>
+            <span>3 - 5 casos (Média)</span>
+        </div>
+        <div class="legend-scale-item">
+            <span class="legend-color-box" style="background: #4ade80;"></span>
+            <span>1 - 2 casos (Baixa)</span>
+        </div>
+        <div class="legend-scale-item">
+            <span class="legend-color-box" style="background: #334155; opacity:0.5;"></span>
+            <span>0 casos (no filtro)</span>
+        </div>
+    </div>
+
+    <!-- Sidebar Dashboard -->
+    <div class="sidebar" id="sidebar">
+        <button class="toggle-btn" onclick="toggleSidebar()" title="Ocultar/Expandir Painel">
+            <i class="ph ph-sidebar-simple" id="toggleIcon"></i>
+        </button>
+
+        <div class="sidebar-header">
+            <div class="badge-pill">
+                <i class="ph ph-heartbeat"></i> DATASUS - SIH/SUS SP
+            </div>
+            <h1>Rio Claro (SP)</h1>
+            <p>Mapa de calor por bairros e internações por Câncer de Mama (2021 a 2025).</p>
+        </div>
+
+        <div class="sidebar-content">
+            
+            <!-- KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <span class="kpi-title"><i class="ph ph-users-three"></i> Internações</span>
+                    <span class="kpi-value" id="kpiTotal">345</span>
+                    <span class="kpi-subtext">Casos com AIH registrada</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-title"><i class="ph ph-calendar"></i> Idade Média</span>
+                    <span class="kpi-value" id="kpiIdade">57.5 <small style="font-size:13px; font-weight:500;">anos</small></span>
+                    <span class="kpi-subtext">Faixa: 29 a 92 anos</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-title"><i class="ph ph-map-pin"></i> Bairros</span>
+                    <span class="kpi-value" id="kpiBairros">90</span>
+                    <span class="kpi-subtext">Fronteiras mapeadas</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-title"><i class="ph ph-currency-dollar"></i> Custo SUS</span>
+                    <span class="kpi-value" id="kpiCusto">R$ 806,238</span>
+                    <span class="kpi-subtext">Total hospitalar pago</span>
+                </div>
+            </div>
+
+            <!-- Filtros Interativos -->
+            <div class="filter-section">
+                <div class="section-header">
+                    <span>Filtros Interativos</span>
+                    <i class="ph ph-funnel"></i>
+                </div>
+
+                <span class="filter-label">Ano da Internação:</span>
+                <div class="chip-group" id="filterAno">
+                    <div class="chip active" onclick="filtrarAno('todos', this)">Todos</div>
+                    <div class="chip" onclick="filtrarAno('2021', this)">2021</div>
+                    <div class="chip" onclick="filtrarAno('2022', this)">2022</div>
+                    <div class="chip" onclick="filtrarAno('2023', this)">2023</div>
+                    <div class="chip" onclick="filtrarAno('2024', this)">2024</div>
+                    <div class="chip" onclick="filtrarAno('2025', this)">2025</div>
+                </div>
+
+                <span class="filter-label">Faixa Etária:</span>
+                <div class="chip-group" id="filterIdade">
+                    <div class="chip active" onclick="filtrarFaixa('todas', this)">Todas</div>
+                    <div class="chip" onclick="filtrarFaixa('ate40', this)">&lt; 40</div>
+                    <div class="chip" onclick="filtrarFaixa('40a49', this)">40 - 49</div>
+                    <div class="chip" onclick="filtrarFaixa('50a59', this)">50 - 59</div>
+                    <div class="chip" onclick="filtrarFaixa('60a69', this)">60 - 69</div>
+                    <div class="chip" onclick="filtrarFaixa('70mais', this)">70+</div>
+                </div>
+
+                <!-- Camadas ativas -->
+                <span class="filter-label" style="margin-top: 10px;">Camadas no Mapa:</span>
+                
+                <div class="layer-toggle-row">
+                    <div class="layer-info">
+                        <i class="ph ph-polygon"></i>
+                        <span>Fronteiras e Calor dos Bairros</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleBairros" checked onchange="atualizarCamadas()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="layer-toggle-row">
+                    <div class="layer-info">
+                        <i class="ph ph-circles-three"></i>
+                        <span>Clusters por bairro</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleClusters" checked onchange="atualizarCamadas()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="layer-toggle-row">
+                    <div class="layer-info">
+                        <i class="ph ph-flame"></i>
+                        <span>Mancha de Calor Contínua (Heatmap)</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleHeatmap" onchange="atualizarCamadas()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="layer-toggle-row">
+                    <div class="layer-info">
+                        <i class="ph ph-shield-check"></i>
+                        <span>Limite Municipal de Rio Claro</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleMunicipio" checked onchange="atualizarCamadas()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Top Bairros com Maior Incidência -->
+            <div class="filter-section">
+                <div class="section-header">
+                    <span>Ranking dos Bairros</span>
+                    <i class="ph ph-buildings"></i>
+                </div>
+
+                <div class="search-box">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="bairroSearch" placeholder="Buscar bairro..." oninput="filtrarListaBairros(this.value)">
+                </div>
+
+                <div id="listaTopBairros" style="max-height: 220px; overflow-y: auto;">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet Heat JS -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <script>
+        const rawData = [{"cep": "13500340", "bairro": "Saúde", "logradouro": "Avenida 13", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2021", "valor": 3425.33, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13508500", "bairro": "Centro (Ajapi)", "logradouro": "Estrada Municipal Rio Claro - Ajapi", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2021", "valor": 2003.39, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506899", "bairro": "Jardim do Horto", "logradouro": "Rodovia Constantine Peruchi", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2021", "valor": 1803.6, "dias": 8, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13509656", "bairro": "Recanto das Pedras (Assistência)", "logradouro": "Rua 3 Assistência", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2021", "valor": 454.75, "dias": 3, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502100", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Avenida dos Costas", "lat": -22.41139, "lng": -47.56139, "idade": 37, "ano": "2021", "valor": 3986.79, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505070", "bairro": "Jardim Floridiana", "logradouro": "Rua M 4", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C500", "cid_desc": "Mamilo e aréola"}, {"cep": "13504363", "bairro": "Parque Universitário", "logradouro": "Rua 19", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2021", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13503210", "bairro": "Jardim Claret", "logradouro": "Avenida 8", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2021", "valor": 459.79, "dias": 9, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500511", "bairro": "Vila Aparecida", "logradouro": "Rua 1 A", "lat": -22.41139, "lng": -47.56139, "idade": 34, "ano": "2021", "valor": 503.85, "dias": 8, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502112", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 3 JP", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2021", "valor": 6291.9, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13505100", "bairro": "Jardim Hipódromo", "logradouro": "Rua M 7", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2021", "valor": 372.11, "dias": 5, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505320", "bairro": "Jardim Cherveson", "logradouro": "Avenida M 15", "lat": -22.41139, "lng": -47.56139, "idade": 57, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C504", "cid_desc": "Quadrante superior externo"}, {"cep": "13505100", "bairro": "Jardim Hipódromo", "logradouro": "Rua M 7", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2021", "valor": 2287.75, "dias": 13, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502759", "bairro": "Jardim Novo", "logradouro": "Rua 15 JN", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2021", "valor": 675.81, "dias": 10, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503540", "bairro": "Jardim Paulista", "logradouro": "Rua 30", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2021", "valor": 1570.89, "dias": 0, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13508638", "bairro": "Jardim Terras de Ajapi (Ajapi)", "logradouro": "Rua 6A JTA", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2021", "valor": 1539.42, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503022", "bairro": "Jardim São Paulo", "logradouro": "Avenida 10 A JSP", "lat": -22.41139, "lng": -47.56139, "idade": 40, "ano": "2021", "valor": 636.19, "dias": 6, "morte": true, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500511", "bairro": "Vila Aparecida", "logradouro": "Rua 1 A", "lat": -22.41139, "lng": -47.56139, "idade": 35, "ano": "2021", "valor": 367.44, "dias": 1, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506095", "bairro": "Jardim Vilage", "logradouro": "Avenida 80 A", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2021", "valor": 315.92, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506170", "bairro": "Parque Mãe Preta", "logradouro": "Avenida 2 MP", "lat": -22.41139, "lng": -47.56139, "idade": 42, "ano": "2021", "valor": 2788.67, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505228", "bairro": "Jardim Dona Regina Picelli", "logradouro": "Rua 3 RP", "lat": -22.41139, "lng": -47.56139, "idade": 49, "ano": "2021", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506557", "bairro": "Vila Nova", "logradouro": "Rua 13 A", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506826", "bairro": "Vila Paulista", "logradouro": "Avenida P 15", "lat": -22.41139, "lng": -47.56139, "idade": 89, "ano": "2021", "valor": 833.1, "dias": 8, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500240", "bairro": "Centro", "logradouro": "Rua 11", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2021", "valor": 423.44, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502011", "bairro": "Jardim INOCOOP", "logradouro": "Rua 2 JI", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2021", "valor": 3457.61, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506826", "bairro": "Vila Paulista", "logradouro": "Avenida P 15", "lat": -22.41139, "lng": -47.56139, "idade": 89, "ano": "2021", "valor": 3045.32, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506179", "bairro": "Parque Mãe Preta", "logradouro": "Rua 9 MP", "lat": -22.41139, "lng": -47.56139, "idade": 57, "ano": "2021", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506826", "bairro": "Vila Paulista", "logradouro": "Avenida P 15", "lat": -22.41139, "lng": -47.56139, "idade": 89, "ano": "2021", "valor": 559.04, "dias": 4, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504260", "bairro": "Jardim Bela Vista", "logradouro": "Rua 15", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2021", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13503520", "bairro": "Jardim Maria Cristina", "logradouro": "Avenida 20 JC", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2021", "valor": 5105.87, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13503022", "bairro": "Jardim São Paulo", "logradouro": "Avenida 10 A JSP", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2021", "valor": 1442.44, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505260", "bairro": "Jardim Independência", "logradouro": "Rua M 11", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506746", "bairro": "Vila Indaiá", "logradouro": "Rua 12 B", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2021", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13505220", "bairro": "Jardim Dona Regina Picelli", "logradouro": "Rua do Sobrado", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2021", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13501020", "bairro": "Cidade Jardim", "logradouro": "Rua 1 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2021", "valor": 2872.89, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504266", "bairro": "Jardim Bela Vista", "logradouro": "Avenida 36", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2021", "valor": 2743.73, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502751", "bairro": "Jardim Novo", "logradouro": "Rua 10 JN", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2021", "valor": 1670.94, "dias": 2, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500190", "bairro": "Zona Central", "logradouro": "Rua 6", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2021", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504630", "bairro": "Conjunto Habitacional de Interesse Social Rio Claro H", "logradouro": "Avenida 40 B", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13501020", "bairro": "Cidade Jardim", "logradouro": "Rua 1 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2021", "valor": 367.44, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503512", "bairro": "Jardim Centenário", "logradouro": "Rua 2 JC", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2021", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500100", "bairro": "Consolação", "logradouro": "Rua 11", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2021", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506685", "bairro": "Vila Alemã", "logradouro": "Avenida 28 A", "lat": -22.41139, "lng": -47.56139, "idade": 44, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505100", "bairro": "Jardim Hipódromo", "logradouro": "Rua M 7", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2021", "valor": 432.24, "dias": 1, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504060", "bairro": "Jardim Primavera", "logradouro": "Avenida 50", "lat": -22.41139, "lng": -47.56139, "idade": 84, "ano": "2021", "valor": 2554.65, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506450", "bairro": "Vila São Miguel", "logradouro": "Avenida 70 A", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2021", "valor": 3577.81, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502420", "bairro": "Jardim Guanabara II", "logradouro": "Avenida Marginal 1 JG", "lat": -22.41139, "lng": -47.56139, "idade": 29, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13505005", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 25", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2021", "valor": 1962.61, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13502751", "bairro": "Jardim Novo", "logradouro": "Rua 10 JN", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2021", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500120", "bairro": "Consolação", "logradouro": "Rua 13", "lat": -22.403433, "lng": -47.572978, "idade": 40, "ano": "2021", "valor": 1147.41, "dias": 3, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504011", "bairro": "Vila Saibreiro", "logradouro": "Rua Saibreiro 2", "lat": -22.41139, "lng": -47.56139, "idade": 74, "ano": "2021", "valor": 2554.65, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504097", "bairro": "Santana", "logradouro": "Rua 9", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2021", "valor": 2086.13, "dias": 0, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506749", "bairro": "Vila Bela Vista", "logradouro": "Rua 14 B", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2021", "valor": 2554.65, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500190", "bairro": "Zona Central", "logradouro": "Rua 6", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2021", "valor": 8918.93, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500190", "bairro": "Zona Central", "logradouro": "Rua 6", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2021", "valor": 479.04, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504361", "bairro": "Parque Universitário", "logradouro": "Rua 17", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2021", "valor": 2505.87, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13501388", "bairro": "Estádio", "logradouro": "Rua 22 BE", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2021", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13504712", "bairro": "Jardim Santa Maria", "logradouro": "Rua 16", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2021", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506194", "bairro": "Parque Mãe Preta", "logradouro": "Rua 24 MP", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2021", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504361", "bairro": "Parque Universitário", "logradouro": "Rua 17", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2021", "valor": 2065.39, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504070", "bairro": "Jardim Portugal", "logradouro": "Avenida 52", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2021", "valor": 1921.23, "dias": 1, "morte": false, "cid": "C506", "cid_desc": "Porção axilar da mama"}, {"cep": "13503007", "bairro": "Jardim São Paulo", "logradouro": "Rua 22", "lat": -22.41139, "lng": -47.56139, "idade": 40, "ano": "2021", "valor": 3366.87, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505420", "bairro": "Jardim Ipanema (Expansão)", "logradouro": "Avenida M 31", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2021", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505420", "bairro": "Jardim Ipanema (Expansão)", "logradouro": "Avenida M 31", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2021", "valor": 428.64, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504092", "bairro": "Vila Operária", "logradouro": "Rua 4", "lat": -22.41139, "lng": -47.56139, "idade": 73, "ano": "2021", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506557", "bairro": "Vila Nova", "logradouro": "Rua 13 A", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2021", "valor": 571.07, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503661", "bairro": "Novo Jardim Wenzel", "logradouro": "Rua 2 JW", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2021", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504361", "bairro": "Parque Universitário", "logradouro": "Rua 17", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2021", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503505", "bairro": "Jardim Centenário", "logradouro": "Avenida 8 JC", "lat": -22.41669, "lng": -47.587278, "idade": 44, "ano": "2021", "valor": 479.0, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13508534", "bairro": "Vila di Napoli (Ajapi)", "logradouro": "Avenida 15 Ajapi", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2021", "valor": 407.44, "dias": 5, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501390", "bairro": "Estádio", "logradouro": "Avenida 23", "lat": -22.41139, "lng": -47.56139, "idade": 37, "ano": "2022", "valor": 3113.51, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505373", "bairro": "Parque das Indústrias", "logradouro": "Rua M 17", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2022", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506873", "bairro": "Jardim Conduta", "logradouro": "Rua P 3A", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2022", "valor": 517.44, "dias": 8, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506662", "bairro": "Vila Alemã", "logradouro": "Rua 5 A", "lat": -22.41139, "lng": -47.56139, "idade": 59, "ano": "2022", "valor": 4603.61, "dias": 4, "morte": false, "cid": "C506", "cid_desc": "Porção axilar da mama"}, {"cep": "13505008", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 31", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2022", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505584", "bairro": "Residencial Bosques de Rio Claro", "logradouro": "Avenida 10 BRC", "lat": -22.41139, "lng": -47.56139, "idade": 34, "ano": "2022", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500210", "bairro": "Zona Central", "logradouro": "Rua 8", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2022", "valor": 1570.89, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506134", "bairro": "Conjunto Residencial Vila Verde", "logradouro": "Rua 3 RV", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2022", "valor": 3569.81, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500470", "bairro": "Centro", "logradouro": "Avenida 14", "lat": -22.41139, "lng": -47.56139, "idade": 84, "ano": "2022", "valor": 3701.05, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506810", "bairro": "Cidade Nova", "logradouro": "Rua 2 B", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2022", "valor": 591.42, "dias": 2, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502115", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 6 JP", "lat": -22.41139, "lng": -47.56139, "idade": 70, "ano": "2022", "valor": 72.96, "dias": 1, "morte": false, "cid": "C500", "cid_desc": "Mamilo e aréola"}, {"cep": "13505380", "bairro": "Parque das Indústrias", "logradouro": "Avenida M 25", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2022", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500576", "bairro": "Santana", "logradouro": "Avenida 28", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2022", "valor": 2921.67, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504300", "bairro": "Jardim Wenzel", "logradouro": "Rua 22", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2022", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13505294", "bairro": "Jardim Cherveson", "logradouro": "Rua M 17A", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2022", "valor": 2645.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505373", "bairro": "Parque das Indústrias", "logradouro": "Rua M 17", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2022", "valor": 428.64, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506557", "bairro": "Vila Nova", "logradouro": "Rua 13 A", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2022", "valor": 2240.07, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13508524", "bairro": "Nova Ajapi (Ajapi)", "logradouro": "Avenida 5 Ajapi", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2022", "valor": 367.44, "dias": 5, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503538", "bairro": "Jardim Paulista", "logradouro": "Rua Doutor Francisco José Feliciano de Camargo", "lat": -22.41139, "lng": -47.56139, "idade": 84, "ano": "2022", "valor": 2248.07, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506825", "bairro": "Vila Paulista", "logradouro": "Avenida P 13", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2022", "valor": 1975.67, "dias": 15, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504000", "bairro": "Vila Saibreiro", "logradouro": "Rua Saibreiro 1", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2022", "valor": 548.54, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504269", "bairro": "Jardim Bela Vista", "logradouro": "Avenida 42", "lat": -22.41139, "lng": -47.56139, "idade": 80, "ano": "2022", "valor": 1954.61, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506181", "bairro": "Parque Mãe Preta", "logradouro": "Rua 11 MP", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2022", "valor": 2557.12, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500240", "bairro": "Centro", "logradouro": "Rua 11", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2022", "valor": 2676.99, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500550", "bairro": "Vila Aparecida", "logradouro": "Avenida 30", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2022", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506480", "bairro": "Vila Cristina", "logradouro": "Avenida 64 A", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2022", "valor": 2668.99, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13504727", "bairro": "Jardim Santa Maria", "logradouro": "Avenida 76", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2022", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13504000", "bairro": "Vila Saibreiro", "logradouro": "Rua Saibreiro 1", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2022", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506825", "bairro": "Vila Paulista", "logradouro": "Avenida P 13", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2022", "valor": 963.04, "dias": 8, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501060", "bairro": "Cidade Jardim", "logradouro": "Rua 5 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 49, "ano": "2022", "valor": 768.65, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506770", "bairro": "Cidade Nova", "logradouro": "Avenida 4 A", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2022", "valor": 64.96, "dias": 0, "morte": false, "cid": "C504", "cid_desc": "Quadrante superior externo"}, {"cep": "13504824", "bairro": "Jardim Araucária", "logradouro": "Rua 5", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2022", "valor": 1539.42, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13501410", "bairro": "Estádio", "logradouro": "Avenida 27", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2022", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502100", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Avenida dos Costas", "lat": -22.41139, "lng": -47.56139, "idade": 77, "ano": "2022", "valor": 3569.81, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505511", "bairro": "Residencial das Flores", "logradouro": "Avenida M 55", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2022", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500570", "bairro": "Santana", "logradouro": "Rua Samambaia", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2022", "valor": 2840.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506833", "bairro": "Vila Paulista", "logradouro": "Avenida P 29", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2022", "valor": 3181.05, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13502270", "bairro": "Jardim Esmeralda", "logradouro": "Avenida 15 JP", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2022", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502100", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Avenida dos Costas", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2022", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504605", "bairro": "Jardim Residencial Santa Eliza", "logradouro": "Rua 26 SE", "lat": -22.41139, "lng": -47.56139, "idade": 73, "ano": "2022", "valor": 380.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503658", "bairro": "Novo Jardim Wenzel", "logradouro": "Avenida 3 JW", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2022", "valor": 436.64, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500576", "bairro": "Santana", "logradouro": "Avenida 28", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2022", "valor": 40.38, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13501060", "bairro": "Cidade Jardim", "logradouro": "Rua 5 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 49, "ano": "2022", "valor": 2065.5, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505260", "bairro": "Jardim Independência", "logradouro": "Rua M 11", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2022", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505300", "bairro": "Jardim Cherveson", "logradouro": "Rua M 19", "lat": -22.383033, "lng": -47.571503, "idade": 45, "ano": "2022", "valor": 367.44, "dias": 3, "morte": true, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506873", "bairro": "Jardim Conduta", "logradouro": "Rua P 3A", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2022", "valor": 1588.06, "dias": 24, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505577", "bairro": "Residencial Bosques de Rio Claro", "logradouro": "Rua 8 BRC", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2022", "valor": 3580.45, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505500", "bairro": "Jardim Residencial São José", "logradouro": "Rua 7", "lat": -22.378656, "lng": -47.577146, "idade": 60, "ano": "2022", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505420", "bairro": "Jardim Ipanema (Expansão)", "logradouro": "Avenida M 31", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2022", "valor": 692.19, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500430", "bairro": "Centro", "logradouro": "Avenida 6", "lat": -22.41139, "lng": -47.56139, "idade": 42, "ano": "2022", "valor": 3701.05, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505011", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 37", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2022", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505260", "bairro": "Jardim Independência", "logradouro": "Rua M 11", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2022", "valor": 2759.45, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503751", "bairro": "Jardim Rio Claro", "logradouro": "Rua 21", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2022", "valor": 531.41, "dias": 2, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505008", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 31", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2022", "valor": 1954.61, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504821", "bairro": "Jardim Araucária", "logradouro": "Rua 2", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2022", "valor": 4603.61, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13504400", "bairro": "Parque Universitário", "logradouro": "Avenida 52", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2022", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506720", "bairro": "Vila Indaiá", "logradouro": "Avenida 16 A", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2022", "valor": 540.23, "dias": 8, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503003", "bairro": "Jardim São Paulo", "logradouro": "Rua 18", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2022", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506720", "bairro": "Vila Indaiá", "logradouro": "Avenida 16 A", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2022", "valor": 367.44, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501050", "bairro": "Cidade Jardim", "logradouro": "Rua 4 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 82, "ano": "2022", "valor": 3709.05, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506090", "bairro": "Conjunto Habitacional Arco-Íris (Cecap)", "logradouro": "Avenida 76 AC", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2022", "valor": 2546.65, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506430", "bairro": "Vila São Miguel", "logradouro": "Avenida 74 A", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2022", "valor": 383.44, "dias": 1, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502763", "bairro": "Jardim Novo II", "logradouro": "Rua 19 JN", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2023", "valor": 3701.05, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504824", "bairro": "Jardim Araucária", "logradouro": "Rua 5", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2023", "valor": 428.64, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506460", "bairro": "Vila Cristina", "logradouro": "Avenida 68 A", "lat": -22.41139, "lng": -47.56139, "idade": 33, "ano": "2023", "valor": 3701.05, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506850", "bairro": "Vila Paulista", "logradouro": "Rua P 3", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2023", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500402", "bairro": "Centro", "logradouro": "Avenida 1", "lat": -22.41139, "lng": -47.56139, "idade": 39, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505577", "bairro": "Residencial Bosques de Rio Claro", "logradouro": "Rua 8 BRC", "lat": -22.41139, "lng": -47.56139, "idade": 57, "ano": "2023", "valor": 487.44, "dias": 4, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504227", "bairro": "Jardim Azul", "logradouro": "Rua 2 JZ", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2023", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505494", "bairro": "Residencial das Flores", "logradouro": "Avenida M 51", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2023", "valor": 2344.38, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500150", "bairro": "Centro", "logradouro": "Rua 2", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2023", "valor": 3052.97, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503110", "bairro": "Jardim Mirassol", "logradouro": "Rua 24", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2023", "valor": 2709.77, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505083", "bairro": "Jardim Floridiana", "logradouro": "Rua M 5", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2023", "valor": 912.32, "dias": 8, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506555", "bairro": "Vila Nova", "logradouro": "Rua 11 A", "lat": -22.391471, "lng": -47.550422, "idade": 60, "ano": "2023", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502762", "bairro": "Jardim Novo", "logradouro": "Rua 18 JN", "lat": -22.41139, "lng": -47.56139, "idade": 73, "ano": "2023", "valor": 2676.99, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502018", "bairro": "Jardim INOCOOP", "logradouro": "Avenida 1 JI", "lat": -22.41139, "lng": -47.56139, "idade": 72, "ano": "2023", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500390", "bairro": "Centro", "logradouro": "Avenida 3", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2023", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505494", "bairro": "Residencial das Flores", "logradouro": "Avenida M 51", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2023", "valor": 3512.52, "dias": 1, "morte": false, "cid": "C50", "cid_desc": "Neoplasia maligna da mama"}, {"cep": "13500540", "bairro": "Vila Aparecida", "logradouro": "Avenida 28", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2023", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13509676", "bairro": "Recanto das Pedras (Assistência)", "logradouro": "Rua 6 Assistência", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2023", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504714", "bairro": "Jardim Santa Maria", "logradouro": "Rua Jacutinga", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2023", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C503", "cid_desc": "Quadrante inferior interno"}, {"cep": "13503420", "bairro": "Consolação", "logradouro": "Avenida 17 - de 1488/1489 ao fim", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2023", "valor": 4540.64, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500100", "bairro": "Consolação", "logradouro": "Rua 11", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2023", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506680", "bairro": "Vila Alemã", "logradouro": "Avenida 30 A", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2023", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506494", "bairro": "Vila Cristina", "logradouro": "Rua 8 A.", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2023", "valor": 1962.61, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506666", "bairro": "Vila Alemã", "logradouro": "Rua 10 A", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2023", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506176", "bairro": "Parque Mãe Preta", "logradouro": "Rua 6 MP", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2023", "valor": 436.64, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503021", "bairro": "Jardim São Paulo", "logradouro": "Avenida 10 B JSP", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2023", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506104", "bairro": "Jardim Vilage", "logradouro": "Rua 12 JV", "lat": -22.41139, "lng": -47.56139, "idade": 34, "ano": "2023", "valor": 463.19, "dias": 3, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503658", "bairro": "Novo Jardim Wenzel", "logradouro": "Avenida 3 JW", "lat": -22.41139, "lng": -47.56139, "idade": 74, "ano": "2023", "valor": 3577.81, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502291", "bairro": "Parque Residencial Brasília", "logradouro": "Avenida 20 BR", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2023", "valor": 3537.03, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506180", "bairro": "Parque Mãe Preta", "logradouro": "Rua 10 MP", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506899", "bairro": "Jardim do Horto", "logradouro": "Rodovia Constantine Peruchi", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2023", "valor": 2748.67, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506705", "bairro": "Vila Indaiá", "logradouro": "Avenida 22 A", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2023", "valor": 64.96, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505011", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 37", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2023", "valor": 2622.0, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502011", "bairro": "Jardim INOCOOP", "logradouro": "Rua 2 JI", "lat": -22.41139, "lng": -47.56139, "idade": 49, "ano": "2023", "valor": 672.98, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506660", "bairro": "Vila Alemã", "logradouro": "Rua 3 A", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2023", "valor": 2840.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504646", "bairro": "Jardim Panorama", "logradouro": "Avenida 60 PA", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C506", "cid_desc": "Porção axilar da mama"}, {"cep": "13503143", "bairro": "Jardim Mirassol", "logradouro": "Avenida 3", "lat": -22.41139, "lng": -47.56139, "idade": 40, "ano": "2023", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500576", "bairro": "Santana", "logradouro": "Avenida 28", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2023", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506620", "bairro": "Vila Alemã", "logradouro": "Avenida 44 AB", "lat": -22.41139, "lng": -47.56139, "idade": 57, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505010", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 35", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2023", "valor": 3637.23, "dias": 2, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505060", "bairro": "Jardim Floridiana", "logradouro": "Rua M 3", "lat": -22.41139, "lng": -47.56139, "idade": 57, "ano": "2023", "valor": 428.64, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505007", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 29", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2023", "valor": 3577.81, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506775", "bairro": "Cidade Nova", "logradouro": "Avenida da Saúde", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2023", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503658", "bairro": "Novo Jardim Wenzel", "logradouro": "Avenida 3 JW", "lat": -22.41139, "lng": -47.56139, "idade": 36, "ano": "2023", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C504", "cid_desc": "Quadrante superior externo"}, {"cep": "13502748", "bairro": "Jardim Novo", "logradouro": "Rua 8 JN", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506095", "bairro": "Jardim Vilage", "logradouro": "Avenida 80 A", "lat": -22.41139, "lng": -47.56139, "idade": 30, "ano": "2023", "valor": 2922.57, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506160", "bairro": "Parque Mãe Preta", "logradouro": "Avenida 1 MP", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2023", "valor": 4094.71, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506160", "bairro": "Parque Mãe Preta", "logradouro": "Avenida 1 MP", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2023", "valor": 7051.21, "dias": 10, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502749", "bairro": "Jardim Novo", "logradouro": "Rua 9 JN", "lat": -22.41139, "lng": -47.56139, "idade": 49, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506690", "bairro": "Vila Alemã", "logradouro": "Avenida 26 A", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2023", "valor": 1539.42, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504060", "bairro": "Jardim Primavera", "logradouro": "Avenida 50", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2023", "valor": 2726.67, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502470", "bairro": "Jardim Guanabara II", "logradouro": "Avenida 9 JG", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2023", "valor": 3577.81, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503554", "bairro": "Jardim Nova Veneza", "logradouro": "Rua 5 NV", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2023", "valor": 3189.05, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506494", "bairro": "Vila Cristina", "logradouro": "Rua 8 A.", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2023", "valor": 2717.77, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13501430", "bairro": "Estádio", "logradouro": "Avenida 31", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2023", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502295", "bairro": "Parque Residencial Brasília", "logradouro": "Avenida 28 BR", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2023", "valor": 2614.0, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503505", "bairro": "Jardim Centenário", "logradouro": "Avenida 8 JC", "lat": -22.41669, "lng": -47.587278, "idade": 45, "ano": "2023", "valor": 2085.85, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506188", "bairro": "Parque Mãe Preta", "logradouro": "Rua 18 MP", "lat": -22.41139, "lng": -47.56139, "idade": 57, "ano": "2023", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500150", "bairro": "Centro", "logradouro": "Rua 2", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2023", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504083", "bairro": "Jardim Alfredo Karan", "logradouro": "Avenida 56", "lat": -22.41139, "lng": -47.56139, "idade": 69, "ano": "2023", "valor": 64.96, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506836", "bairro": "Vila Paulista", "logradouro": "Avenida P 35", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2023", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500210", "bairro": "Zona Central", "logradouro": "Rua 8", "lat": -22.41139, "lng": -47.56139, "idade": 82, "ano": "2023", "valor": 2003.39, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13500420", "bairro": "Centro", "logradouro": "Avenida 4", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2023", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503683", "bairro": "Jardim Bom Sucesso", "logradouro": "Rua 5 JW", "lat": -22.41139, "lng": -47.56139, "idade": 42, "ano": "2023", "valor": 1539.42, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506178", "bairro": "Parque Mãe Preta", "logradouro": "Rua 8 MP", "lat": -22.41139, "lng": -47.56139, "idade": 69, "ano": "2023", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504050", "bairro": "Jardim Primavera", "logradouro": "Avenida 46", "lat": -22.41139, "lng": -47.56139, "idade": 68, "ano": "2023", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506176", "bairro": "Parque Mãe Preta", "logradouro": "Rua 6 MP", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2023", "valor": 3953.73, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502270", "bairro": "Jardim Esmeralda", "logradouro": "Avenida 15 JP", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2024", "valor": 2832.11, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502034", "bairro": "Chácara Luza", "logradouro": "Avenida C", "lat": -22.41139, "lng": -47.56139, "idade": 32, "ano": "2023", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503587", "bairro": "Loteamento Sebastião dos Santos Lima", "logradouro": "Avenida 14 JC", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2024", "valor": 2748.31, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500170", "bairro": "Centro", "logradouro": "Rua 4", "lat": -22.41139, "lng": -47.56139, "idade": 81, "ano": "2024", "valor": 2552.41, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502749", "bairro": "Jardim Novo", "logradouro": "Rua 9 JN", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2024", "valor": 367.44, "dias": 0, "morte": true, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504642", "bairro": "Jardim das Paineiras", "logradouro": "Avenida 52 PA", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2024", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505083", "bairro": "Jardim Floridiana", "logradouro": "Rua M 5", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2024", "valor": 3384.55, "dias": 1, "morte": false, "cid": "C505", "cid_desc": "Quadrante inferior externo"}, {"cep": "13506550", "bairro": "Vila Nova", "logradouro": "Rua 9 A", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2024", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500050", "bairro": "Jardim Donângela", "logradouro": "Rua 6", "lat": -22.41139, "lng": -47.56139, "idade": 80, "ano": "2024", "valor": 2298.55, "dias": 8, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500050", "bairro": "Jardim Donângela", "logradouro": "Rua 6", "lat": -22.41139, "lng": -47.56139, "idade": 80, "ano": "2024", "valor": 926.86, "dias": 3, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502745", "bairro": "Jardim Novo", "logradouro": "Rua 5 JN", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2024", "valor": 564.56, "dias": 6, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500550", "bairro": "Vila Aparecida", "logradouro": "Avenida 30", "lat": -22.41139, "lng": -47.56139, "idade": 73, "ano": "2024", "valor": 2554.65, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504081", "bairro": "Jardim Alfredo Karan", "logradouro": "Rua 7 Particular", "lat": -22.41139, "lng": -47.56139, "idade": 73, "ano": "2024", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500140", "bairro": "Centro", "logradouro": "Rua 1", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2024", "valor": 620.58, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505305", "bairro": "Jardim Cherveson", "logradouro": "Rua M 20", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2024", "valor": 1824.88, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506590", "bairro": "Vila Alemã", "logradouro": "Avenida 48 A", "lat": -22.41139, "lng": -47.56139, "idade": 66, "ano": "2024", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13504617", "bairro": "Jardim Residencial Santa Eliza", "logradouro": "Avenida 42 SE", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2024", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506850", "bairro": "Vila Paulista", "logradouro": "Rua P 3", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2024", "valor": 1853.9, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13508502", "bairro": "Centro (Ajapi)", "logradouro": "Avenida 2 Ajapi", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2024", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13501658", "bairro": "Jardim Leblon", "logradouro": "Avenida 2 JL", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 2750.55, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505295", "bairro": "Jardim Cherveson", "logradouro": "Rua M 18", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 428.64, "dias": 11, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502745", "bairro": "Jardim Novo", "logradouro": "Rua 5 JN", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2024", "valor": 2750.55, "dias": 1, "morte": false, "cid": "C502", "cid_desc": "Quadrante superior interno"}, {"cep": "13505295", "bairro": "Jardim Cherveson", "logradouro": "Rua M 18", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 780.09, "dias": 6, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504825", "bairro": "Jardim Araucária", "logradouro": "Rua 6", "lat": -22.394161, "lng": -47.568923, "idade": 43, "ano": "2024", "valor": 388.18, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502323", "bairro": "Jardim Nova Rio Claro", "logradouro": "Rua 25 NR", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2024", "valor": 1702.54, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500260", "bairro": "Vila do Rádio", "logradouro": "Rua 13", "lat": -22.41139, "lng": -47.56139, "idade": 70, "ano": "2024", "valor": 2840.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506192", "bairro": "Parque Mãe Preta", "logradouro": "Rua 22 MP", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2024", "valor": 3534.82, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500143", "bairro": "Zona Central", "logradouro": "Rua 7", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2024", "valor": 3037.19, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504361", "bairro": "Parque Universitário", "logradouro": "Rua 17", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2024", "valor": 388.18, "dias": 0, "morte": false, "cid": "C503", "cid_desc": "Quadrante inferior interno"}, {"cep": "13505008", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 31", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2024", "valor": 2815.33, "dias": 3, "morte": false, "cid": "C505", "cid_desc": "Quadrante inferior externo"}, {"cep": "13502120", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 7 JP", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2024", "valor": 3029.19, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506590", "bairro": "Vila Alemã", "logradouro": "Avenida 48 A", "lat": -22.41139, "lng": -47.56139, "idade": 59, "ano": "2024", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506110", "bairro": "Jardim Vilage", "logradouro": "Rua 6 JV", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506760", "bairro": "Cidade Nova", "logradouro": "Avenida 8 A", "lat": -22.41139, "lng": -47.56139, "idade": 88, "ano": "2024", "valor": 1048.69, "dias": 8, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502191", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 15 JP", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2024", "valor": 4285.37, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502170", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 12 JP", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 1202.13, "dias": 24, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502170", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 12 JP", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 1130.83, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505491", "bairro": "Jardim Residencial São José", "logradouro": "Avenida M 45", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2024", "valor": 691.63, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505491", "bairro": "Jardim Residencial São José", "logradouro": "Avenida M 45", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2024", "valor": 498.2, "dias": 14, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506403", "bairro": "Vila São Miguel", "logradouro": "Rua 12 A", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2024", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504715", "bairro": "Jardim Boa Vista", "logradouro": "Rua 18 BV", "lat": -22.41139, "lng": -47.56139, "idade": 77, "ano": "2024", "valor": 2628.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504825", "bairro": "Jardim Araucária", "logradouro": "Rua 6", "lat": -22.394161, "lng": -47.568923, "idade": 43, "ano": "2024", "valor": 428.64, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500151", "bairro": "Centro", "logradouro": "Rua 2", "lat": -22.41139, "lng": -47.56139, "idade": 87, "ano": "2024", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13506555", "bairro": "Vila Nova", "logradouro": "Rua 11 A", "lat": -22.391471, "lng": -47.550422, "idade": 40, "ano": "2024", "valor": 3651.37, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506569", "bairro": "Vila Alemã", "logradouro": "Rua 7 A", "lat": -22.41139, "lng": -47.56139, "idade": 69, "ano": "2024", "valor": 3822.49, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13505295", "bairro": "Jardim Cherveson", "logradouro": "Rua M 18", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2024", "valor": 2085.85, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502292", "bairro": "Parque Residencial Brasília", "logradouro": "Avenida 22 BR", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2024", "valor": 2750.55, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504268", "bairro": "Jardim Bela Vista", "logradouro": "Avenida 40", "lat": -22.41139, "lng": -47.56139, "idade": 72, "ano": "2024", "valor": 1954.61, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500550", "bairro": "Vila Aparecida", "logradouro": "Avenida 30", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2024", "valor": 1913.83, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502112", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 3 JP", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2024", "valor": 436.91, "dias": 1, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504824", "bairro": "Jardim Araucária", "logradouro": "Rua 5", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2024", "valor": 388.18, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506690", "bairro": "Vila Alemã", "logradouro": "Avenida 26 A", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2024", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505145", "bairro": "Vila Martins", "logradouro": "Avenida M 11", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2024", "valor": 3580.45, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504646", "bairro": "Jardim Panorama", "logradouro": "Avenida 60 PA", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2025", "valor": 64.96, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506480", "bairro": "Vila Cristina", "logradouro": "Avenida 64 A", "lat": -22.41139, "lng": -47.56139, "idade": 42, "ano": "2025", "valor": 367.44, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506828", "bairro": "Vila Paulista", "logradouro": "Avenida P 19", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2025", "valor": 2636.21, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502018", "bairro": "Jardim INOCOOP", "logradouro": "Avenida 1 JI", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2025", "valor": 3029.19, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13509602", "bairro": "Centro (Assistência)", "logradouro": "Estrada Fazenda Santa Rosa", "lat": -22.41139, "lng": -47.56139, "idade": 69, "ano": "2025", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504310", "bairro": "Jardim Paulista II", "logradouro": "Rua 28", "lat": -22.41139, "lng": -47.56139, "idade": 44, "ano": "2025", "valor": 367.44, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506738", "bairro": "Vila Indaiá", "logradouro": "Rua 6 B", "lat": -22.41139, "lng": -47.56139, "idade": 48, "ano": "2025", "valor": 3032.41, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504307", "bairro": "Jardim Paulista II", "logradouro": "Rua 25", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2025", "valor": 3765.33, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500181", "bairro": "Centro", "logradouro": "Rua 5", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2025", "valor": 45.93, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502751", "bairro": "Jardim Novo", "logradouro": "Rua 10 JN", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2025", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506661", "bairro": "Vila Alemã", "logradouro": "Rua 4 A", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2025", "valor": 3732.93, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502749", "bairro": "Jardim Novo", "logradouro": "Rua 9 JN", "lat": -22.41139, "lng": -47.56139, "idade": 56, "ano": "2025", "valor": 2206.91, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500190", "bairro": "Zona Central", "logradouro": "Rua 6", "lat": -22.41139, "lng": -47.56139, "idade": 74, "ano": "2025", "valor": 3765.33, "dias": 1, "morte": false, "cid": "C503", "cid_desc": "Quadrante inferior interno"}, {"cep": "13506088", "bairro": "Conjunto Habitacional Arco-Íris (Cecap)", "logradouro": "Rua 17 C", "lat": -22.41139, "lng": -47.56139, "idade": 81, "ano": "2025", "valor": 2790.95, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500230", "bairro": "Centro", "logradouro": "Rua 10", "lat": -22.41139, "lng": -47.56139, "idade": 40, "ano": "2025", "valor": 2750.55, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505007", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 29", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2025", "valor": 2505.87, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504687", "bairro": "Jardim Boa Vista", "logradouro": "Avenida 92 BV", "lat": -22.41139, "lng": -47.56139, "idade": 91, "ano": "2025", "valor": 3668.27, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501430", "bairro": "Estádio", "logradouro": "Avenida 31", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2025", "valor": 418.52, "dias": 9, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505493", "bairro": "Jardim Residencial São José", "logradouro": "Avenida M 49", "lat": -22.41139, "lng": -47.56139, "idade": 49, "ano": "2025", "valor": 2709.77, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506561", "bairro": "Vila Alemã", "logradouro": "Avenida Joaquim Ribeiro", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2025", "valor": 384.78, "dias": 1, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505011", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 37", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2025", "valor": 2717.77, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506666", "bairro": "Vila Alemã", "logradouro": "Rua 10 A", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2025", "valor": 3988.09, "dias": 3, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502761", "bairro": "Jardim Novo", "logradouro": "Rua 17 JN", "lat": -22.41139, "lng": -47.56139, "idade": 59, "ano": "2025", "valor": 367.44, "dias": 2, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506192", "bairro": "Parque Mãe Preta", "logradouro": "Rua 22 MP", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2025", "valor": 3368.38, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13502290", "bairro": "Parque Residencial Brasília", "logradouro": "Avenida 18 BR", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2024", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503665", "bairro": "Novo Jardim Wenzel", "logradouro": "Rua 6 JW", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2024", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503614", "bairro": "Bom Retiro", "logradouro": "Rua 4 JW", "lat": -22.41139, "lng": -47.56139, "idade": 34, "ano": "2024", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C504", "cid_desc": "Quadrante superior externo"}, {"cep": "13502754", "bairro": "Jardim Novo", "logradouro": "Rua 13 JN", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2025", "valor": 2791.33, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504660", "bairro": "Jardim Panorama", "logradouro": "Rua 27 PA", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2025", "valor": 3610.59, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506550", "bairro": "Vila Nova", "logradouro": "Rua 9 A", "lat": -22.41139, "lng": -47.56139, "idade": 84, "ano": "2025", "valor": 744.39, "dias": 4, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13508971", "bairro": "Centro (Ajapi)", "logradouro": "Rua 4 Ajapi 341", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2025", "valor": 4611.61, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505120", "bairro": "Parque das Indústrias", "logradouro": "Rua M 8", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2025", "valor": 470.79, "dias": 13, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505120", "bairro": "Parque das Indústrias", "logradouro": "Rua M 8", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2025", "valor": 540.79, "dias": 8, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504070", "bairro": "Jardim Portugal", "logradouro": "Avenida 52", "lat": -22.41139, "lng": -47.56139, "idade": 75, "ano": "2025", "valor": 5643.22, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504821", "bairro": "Jardim Araucária", "logradouro": "Rua 2", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2025", "valor": 3978.13, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506664", "bairro": "Vila Alemã", "logradouro": "Rua 8 A", "lat": -22.38188, "lng": -47.55129, "idade": 49, "ano": "2025", "valor": 367.44, "dias": 0, "morte": true, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502180", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Rua 13 JP", "lat": -22.41139, "lng": -47.56139, "idade": 43, "ano": "2025", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504821", "bairro": "Jardim Araucária", "logradouro": "Rua 2", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2025", "valor": 587.35, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504080", "bairro": "Jardim Alfredo Karan", "logradouro": "Avenida 54", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2025", "valor": 2840.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502030", "bairro": "Chácara Luza", "logradouro": "Rua A", "lat": -22.427564, "lng": -47.575063, "idade": 47, "ano": "2025", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500576", "bairro": "Santana", "logradouro": "Avenida 28", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2025", "valor": 1962.61, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506720", "bairro": "Vila Indaiá", "logradouro": "Avenida 16 A", "lat": -22.41139, "lng": -47.56139, "idade": 79, "ano": "2025", "valor": 3872.17, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506556", "bairro": "Vila Nova", "logradouro": "Rua 12 A", "lat": -22.41139, "lng": -47.56139, "idade": 74, "ano": "2025", "valor": 2283.07, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501050", "bairro": "Cidade Jardim", "logradouro": "Rua 4 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2025", "valor": 3865.91, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502771", "bairro": "Jardim das Nações I", "logradouro": "Rua 1", "lat": -22.41139, "lng": -47.56139, "idade": 48, "ano": "2025", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504220", "bairro": "Jardim Olinda", "logradouro": "Avenida 66", "lat": -22.41139, "lng": -47.56139, "idade": 45, "ano": "2025", "valor": 3531.29, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502410", "bairro": "Jardim Guanabara", "logradouro": "Rua 2 JG", "lat": -22.41139, "lng": -47.56139, "idade": 42, "ano": "2025", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500550", "bairro": "Vila Aparecida", "logradouro": "Avenida 30", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2025", "valor": 3814.49, "dias": 2, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502396", "bairro": "Jardim Guanabara", "logradouro": "Avenida 4 JG", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2025", "valor": 4949.84, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505012", "bairro": "Jardim Floridiana", "logradouro": "Avenida M 39", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2025", "valor": 405.44, "dias": 4, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506074", "bairro": "Conjunto Habitacional Arco-Íris (Cecap)", "logradouro": "Rua 1 C", "lat": -22.41139, "lng": -47.56139, "idade": 67, "ano": "2025", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C500", "cid_desc": "Mamilo e aréola"}, {"cep": "13502740", "bairro": "Jardim Novo", "logradouro": "Avenida 1 JN", "lat": -22.41139, "lng": -47.56139, "idade": 50, "ano": "2025", "valor": 2660.61, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13502745", "bairro": "Jardim Novo", "logradouro": "Rua 5 JN", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2025", "valor": 3204.71, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505228", "bairro": "Jardim Dona Regina Picelli", "logradouro": "Rua 3 RP", "lat": -22.41139, "lng": -47.56139, "idade": 52, "ano": "2025", "valor": 3610.61, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503184", "bairro": "Cidade Claret", "logradouro": "Rua 16", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2025", "valor": 2622.0, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502470", "bairro": "Jardim Guanabara II", "logradouro": "Avenida 9 JG", "lat": -22.41139, "lng": -47.56139, "idade": 40, "ano": "2025", "valor": 2832.11, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506807", "bairro": "Cidade Nova", "logradouro": "Rua 5 B", "lat": -22.41139, "lng": -47.56139, "idade": 72, "ano": "2025", "valor": 3773.71, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504187", "bairro": "Alto do Santana", "logradouro": "Rua 7", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2025", "valor": 376.78, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500210", "bairro": "Zona Central", "logradouro": "Rua 8", "lat": -22.41139, "lng": -47.56139, "idade": 59, "ano": "2025", "valor": 3569.81, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506180", "bairro": "Parque Mãe Preta", "logradouro": "Rua 10 MP", "lat": -22.41139, "lng": -47.56139, "idade": 55, "ano": "2025", "valor": 428.64, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503050", "bairro": "Jardim São Paulo", "logradouro": "Avenida 22", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2025", "valor": 2701.39, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505600", "bairro": "Distrito Industrial", "logradouro": "Avenida Brasil", "lat": -22.41139, "lng": -47.56139, "idade": 48, "ano": "2025", "valor": 3653.63, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13500320", "bairro": "Saúde", "logradouro": "Avenida 17", "lat": -22.419576, "lng": -47.566305, "idade": 50, "ano": "2025", "valor": 3061.59, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503210", "bairro": "Jardim Claret", "logradouro": "Avenida 8", "lat": -22.41139, "lng": -47.56139, "idade": 92, "ano": "2025", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503674", "bairro": "Jardim Bom Sucesso", "logradouro": "Rua 14 JW", "lat": -22.41139, "lng": -47.56139, "idade": 33, "ano": "2025", "valor": 3602.21, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502011", "bairro": "Jardim INOCOOP", "logradouro": "Rua 2 JI", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2025", "valor": 2799.33, "dias": 1, "morte": false, "cid": "C501", "cid_desc": "Porção central da mama"}, {"cep": "13509670", "bairro": "Recanto das Pedras (Assistência)", "logradouro": "Avenida Marginal Recanto das Pedras", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2025", "valor": 3621.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500210", "bairro": "Zona Central", "logradouro": "Rua 8", "lat": -22.41139, "lng": -47.56139, "idade": 76, "ano": "2025", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506715", "bairro": "Vila Indaiá", "logradouro": "Avenida 18 A", "lat": -22.41139, "lng": -47.56139, "idade": 78, "ano": "2025", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13505220", "bairro": "Jardim Dona Regina Picelli", "logradouro": "Rua do Sobrado", "lat": -22.41139, "lng": -47.56139, "idade": 44, "ano": "2025", "valor": 428.64, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505280", "bairro": "Jardim Independência", "logradouro": "Rua M 13", "lat": -22.41139, "lng": -47.56139, "idade": 42, "ano": "2025", "valor": 672.98, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504210", "bairro": "Jardim Olinda", "logradouro": "Avenida 62", "lat": -22.41139, "lng": -47.56139, "idade": 61, "ano": "2025", "valor": 3629.23, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506179", "bairro": "Parque Mãe Preta", "logradouro": "Rua 9 MP", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2025", "valor": 4742.85, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501590", "bairro": "Jardim Anhangüera", "logradouro": "Avenida Marginal 1", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2025", "valor": 2505.87, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504686", "bairro": "Jardim Boa Vista", "logradouro": "Avenida 90 BV", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2025", "valor": 266.3, "dias": 7, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504686", "bairro": "Jardim Boa Vista", "logradouro": "Avenida 90 BV", "lat": -22.41139, "lng": -47.56139, "idade": 51, "ano": "2025", "valor": 727.97, "dias": 16, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13507792", "bairro": "Loteamento Fontes e Bosques Alam Grei", "logradouro": "Caminho 2", "lat": -22.41139, "lng": -47.56139, "idade": 74, "ano": "2025", "valor": 410.49, "dias": 3, "morte": true, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13503010", "bairro": "Jardim São Paulo", "logradouro": "Rua 25", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2025", "valor": 2935.82, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501050", "bairro": "Cidade Jardim", "logradouro": "Rua 4 CJ", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2025", "valor": 2410.1, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13502100", "bairro": "Jardim Residencial das Palmeiras", "logradouro": "Avenida dos Costas", "lat": -22.41139, "lng": -47.56139, "idade": 59, "ano": "2025", "valor": 3945.73, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506121", "bairro": "Jardim Parque Residencial", "logradouro": "Avenida 84 A", "lat": -22.41139, "lng": -47.56139, "idade": 58, "ano": "2025", "valor": 428.64, "dias": 0, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13506139", "bairro": "Conjunto Residencial Vila Verde", "logradouro": "Rua 8 RV", "lat": -22.41139, "lng": -47.56139, "idade": 46, "ano": "2025", "valor": 3569.81, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13500240", "bairro": "Centro", "logradouro": "Rua 11", "lat": -22.41139, "lng": -47.56139, "idade": 60, "ano": "2025", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506557", "bairro": "Vila Nova", "logradouro": "Rua 13 A", "lat": -22.41139, "lng": -47.56139, "idade": 53, "ano": "2025", "valor": 3814.49, "dias": 1, "morte": false, "cid": "C508", "cid_desc": "Lesão invasiva da mama"}, {"cep": "13504120", "bairro": "Vila Operária", "logradouro": "Avenida 36", "lat": -22.41139, "lng": -47.56139, "idade": 64, "ano": "2025", "valor": 2750.55, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13501370", "bairro": "Estádio", "logradouro": "Rua 20 BE", "lat": -22.41139, "lng": -47.56139, "idade": 63, "ano": "2025", "valor": 2595.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506134", "bairro": "Conjunto Residencial Vila Verde", "logradouro": "Rua 3 RV", "lat": -22.41139, "lng": -47.56139, "idade": 62, "ano": "2025", "valor": 4619.61, "dias": 2, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505373", "bairro": "Parque das Indústrias", "logradouro": "Rua M 17", "lat": -22.41139, "lng": -47.56139, "idade": 48, "ano": "2025", "valor": 472.18, "dias": 0, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506181", "bairro": "Parque Mãe Preta", "logradouro": "Rua 11 MP", "lat": -22.41139, "lng": -47.56139, "idade": 44, "ano": "2025", "valor": 2587.43, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13503656", "bairro": "Novo Jardim Wenzel", "logradouro": "Avenida 7 JW", "lat": -22.41139, "lng": -47.56139, "idade": 41, "ano": "2025", "valor": 3642.99, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13506590", "bairro": "Vila Alemã", "logradouro": "Avenida 48 A", "lat": -22.41139, "lng": -47.56139, "idade": 54, "ano": "2025", "valor": 2750.55, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13505531", "bairro": "Jardim Progresso", "logradouro": "Rua M 20A", "lat": -22.41139, "lng": -47.56139, "idade": 65, "ano": "2025", "valor": 2676.99, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}, {"cep": "13504450", "bairro": "Parque Universitário", "logradouro": "Avenida 62", "lat": -22.41139, "lng": -47.56139, "idade": 47, "ano": "2025", "valor": 3602.21, "dias": 1, "morte": false, "cid": "C509", "cid_desc": "Mama, não especificado"}];
+        const municipioGeoJSON = {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[-47.4698, -22.2454], [-47.5049, -22.2447], [-47.5543, -22.2437], [-47.5942, -22.2493], [-47.5946, -22.2785], [-47.5956, -22.2795], [-47.598, -22.2803], [-47.5993, -22.284], [-47.6008, -22.2859], [-47.6019, -22.2887], [-47.6032, -22.2901], [-47.6058, -22.2915], [-47.6074, -22.2936], [-47.6099, -22.2943], [-47.6138, -22.2964], [-47.6158, -22.2984], [-47.6186, -22.3034], [-47.6341, -22.3352], [-47.6718, -22.3348], [-47.6748, -22.3328], [-47.6759, -22.3317], [-47.6759, -22.3306], [-47.678, -22.3277], [-47.6788, -22.3239], [-47.6815, -22.322], [-47.6868, -22.3243], [-47.6892, -22.322], [-47.6899, -22.3197], [-47.6926, -22.3189], [-47.6942, -22.3175], [-47.6959, -22.3172], [-47.6972, -22.3163], [-47.6995, -22.3133], [-47.7, -22.3107], [-47.7016, -22.3095], [-47.7033, -22.306], [-47.7045, -22.306], [-47.707, -22.3048], [-47.7091, -22.3044], [-47.7105, -22.3032], [-47.7137, -22.3019], [-47.7151, -22.3031], [-47.7168, -22.3026], [-47.7188, -22.3044], [-47.7196, -22.3057], [-47.7211, -22.3064], [-47.7214, -22.3045], [-47.7247, -22.3038], [-47.7264, -22.3021], [-47.727, -22.3005], [-47.7285, -22.2993], [-47.7307, -22.2987], [-47.732, -22.3004], [-47.7351, -22.3015], [-47.7358, -22.3023], [-47.7358, -22.3051], [-47.7384, -22.309], [-47.738, -22.3101], [-47.7382, -22.3122], [-47.7388, -22.3132], [-47.7394, -22.3161], [-47.7425, -22.3187], [-47.747, -22.321], [-47.7486, -22.3215], [-47.7511, -22.323], [-47.7553, -22.3257], [-47.7596, -22.3281], [-47.7636, -22.3312], [-47.7652, -22.3332], [-47.7652, -22.3355], [-47.7642, -22.3375], [-47.7621, -22.3394], [-47.7603, -22.3404], [-47.7577, -22.336], [-47.7534, -22.3317], [-47.7514, -22.3305], [-47.7456, -22.3284], [-47.7424, -22.3285], [-47.7399, -22.3294], [-47.7385, -22.3308], [-47.7372, -22.3311], [-47.7349, -22.3306], [-47.7329, -22.3309], [-47.7266, -22.3349], [-47.7236, -22.3343], [-47.7214, -22.3347], [-47.7204, -22.3361], [-47.72, -22.3397], [-47.7186, -22.3427], [-47.7184, -22.3478], [-47.7175, -22.3495], [-47.7153, -22.3511], [-47.7133, -22.3513], [-47.711, -22.3537], [-47.7105, -22.3562], [-47.7084, -22.3597], [-47.7084, -22.3637], [-47.7074, -22.367], [-47.7046, -22.3693], [-47.7019, -22.3709], [-47.7023, -22.3748], [-47.7033, -22.3769], [-47.703, -22.3793], [-47.7023, -22.38], [-47.7, -22.3796], [-47.6983, -22.381], [-47.6976, -22.3831], [-47.6966, -22.3831], [-47.6931, -22.3818], [-47.6907, -22.3815], [-47.6898, -22.3806], [-47.6902, -22.3767], [-47.6897, -22.3756], [-47.6882, -22.3759], [-47.6851, -22.3781], [-47.6826, -22.3789], [-47.6811, -22.3801], [-47.6789, -22.3804], [-47.6749, -22.3801], [-47.673, -22.3805], [-47.6703, -22.38], [-47.6665, -22.3804], [-47.6652, -22.3829], [-47.6658, -22.3847], [-47.6651, -22.3874], [-47.6657, -22.3883], [-47.6646, -22.3897], [-47.663, -22.3937], [-47.6634, -22.3947], [-47.6618, -22.3956], [-47.6616, -22.397], [-47.6604, -22.3982], [-47.6592, -22.3986], [-47.6584, -22.3997], [-47.6567, -22.4], [-47.6574, -22.4015], [-47.6588, -22.4015], [-47.6607, -22.4045], [-47.6598, -22.4059], [-47.6582, -22.4065], [-47.6582, -22.4092], [-47.6573, -22.4104], [-47.6538, -22.4112], [-47.6544, -22.4137], [-47.6535, -22.4156], [-47.6536, -22.4179], [-47.652, -22.4196], [-47.6523, -22.4201], [-47.6553, -22.4202], [-47.6563, -22.4217], [-47.655, -22.4225], [-47.6539, -22.4218], [-47.6516, -22.4236], [-47.6525, -22.4264], [-47.6522, -22.4293], [-47.6518, -22.4307], [-47.6499, -22.4324], [-47.6495, -22.4355], [-47.6502, -22.4364], [-47.6532, -22.4376], [-47.6528, -22.44], [-47.6569, -22.4422], [-47.655, -22.4448], [-47.6561, -22.4463], [-47.657, -22.4463], [-47.657, -22.4481], [-47.6549, -22.4485], [-47.6544, -22.4495], [-47.657, -22.4504], [-47.6588, -22.4517], [-47.6594, -22.4532], [-47.6584, -22.4558], [-47.657, -22.4558], [-47.6564, -22.4573], [-47.6586, -22.4582], [-47.6567, -22.4618], [-47.655, -22.4608], [-47.6529, -22.4601], [-47.6525, -22.4613], [-47.6536, -22.463], [-47.6533, -22.4651], [-47.6509, -22.465], [-47.6496, -22.4639], [-47.6482, -22.4639], [-47.6461, -22.4654], [-47.6441, -22.4662], [-47.6444, -22.4676], [-47.6433, -22.4683], [-47.6425, -22.4671], [-47.6413, -22.4675], [-47.6406, -22.4691], [-47.6403, -22.4715], [-47.641, -22.4749], [-47.64, -22.4774], [-47.641, -22.479], [-47.6394, -22.4797], [-47.6389, -22.4808], [-47.6399, -22.4815], [-47.64, -22.4829], [-47.6389, -22.4838], [-47.6392, -22.4855], [-47.6387, -22.4877], [-47.6403, -22.4893], [-47.642, -22.4897], [-47.6424, -22.4907], [-47.6417, -22.4923], [-47.6441, -22.4926], [-47.6451, -22.4938], [-47.6454, -22.4951], [-47.6468, -22.4968], [-47.6476, -22.4967], [-47.649, -22.4951], [-47.6507, -22.4959], [-47.6527, -22.4989], [-47.6513, -22.5009], [-47.6507, -22.5026], [-47.6512, -22.5033], [-47.6538, -22.5031], [-47.6551, -22.5036], [-47.6543, -22.5048], [-47.6534, -22.5075], [-47.6539, -22.5107], [-47.6556, -22.5107], [-47.6561, -22.5116], [-47.6559, -22.5133], [-47.657, -22.5137], [-47.6589, -22.5128], [-47.6602, -22.5137], [-47.6581, -22.5184], [-47.6586, -22.5196], [-47.6577, -22.5205], [-47.6559, -22.5199], [-47.6544, -22.5209], [-47.6539, -22.5246], [-47.6507, -22.5285], [-47.6503, -22.5304], [-47.6481, -22.5306], [-47.6464, -22.5324], [-47.6404, -22.5351], [-47.6375, -22.5375], [-47.635, -22.5414], [-47.6344, -22.5446], [-47.6331, -22.5465], [-47.6309, -22.5476], [-47.6281, -22.5481], [-47.6246, -22.5483], [-47.6224, -22.55], [-47.6192, -22.5504], [-47.6163, -22.5493], [-47.614, -22.5496], [-47.6103, -22.5515], [-47.6071, -22.552], [-47.6036, -22.5512], [-47.6004, -22.5497], [-47.599, -22.5487], [-47.5943, -22.5439], [-47.5924, -22.5405], [-47.5914, -22.5405], [-47.5884, -22.5419], [-47.5866, -22.5424], [-47.5827, -22.542], [-47.5763, -22.5419], [-47.5742, -22.5408], [-47.5735, -22.538], [-47.5735, -22.5354], [-47.5741, -22.5324], [-47.5729, -22.5303], [-47.5685, -22.5292], [-47.5627, -22.5266], [-47.5647, -22.5239], [-47.5662, -22.5225], [-47.5674, -22.5205], [-47.5698, -22.5179], [-47.5723, -22.5167], [-47.5765, -22.5154], [-47.5787, -22.5141], [-47.5793, -22.5111], [-47.579, -22.507], [-47.5777, -22.4767], [-47.5765, -22.4756], [-47.5772, -22.4745], [-47.5788, -22.4736], [-47.5778, -22.4705], [-47.5753, -22.47], [-47.5743, -22.4691], [-47.5726, -22.4697], [-47.572, -22.4665], [-47.5722, -22.465], [-47.5705, -22.4648], [-47.5681, -22.466], [-47.5697, -22.4614], [-47.5691, -22.4607], [-47.567, -22.4626], [-47.566, -22.4609], [-47.5639, -22.4598], [-47.5631, -22.4582], [-47.5606, -22.458], [-47.5589, -22.4572], [-47.5577, -22.4585], [-47.5566, -22.4576], [-47.5591, -22.4557], [-47.5576, -22.455], [-47.5561, -22.4537], [-47.5546, -22.4511], [-47.5523, -22.4489], [-47.5503, -22.4478], [-47.5461, -22.4462], [-47.5427, -22.4401], [-47.5415, -22.439], [-47.5391, -22.4386], [-47.5369, -22.437], [-47.5349, -22.4341], [-47.5323, -22.4321], [-47.5314, -22.4298], [-47.5294, -22.4294], [-47.5252, -22.4315], [-47.5225, -22.4336], [-47.5199, -22.4344], [-47.5185, -22.4339], [-47.5141, -22.4312], [-47.5119, -22.4305], [-47.5099, -22.428], [-47.508, -22.4264], [-47.506, -22.4254], [-47.5041, -22.4252], [-47.5014, -22.4261], [-47.4997, -22.4258], [-47.4956, -22.4221], [-47.494, -22.4215], [-47.4914, -22.4199], [-47.4908, -22.4187], [-47.4906, -22.415], [-47.489, -22.4139], [-47.4868, -22.415], [-47.4847, -22.4149], [-47.4816, -22.4156], [-47.4784, -22.4152], [-47.4743, -22.4153], [-47.4712, -22.4127], [-47.469, -22.4124], [-47.4673, -22.4133], [-47.4636, -22.4103], [-47.4621, -22.4083], [-47.4616, -22.4061], [-47.4619, -22.4038], [-47.4625, -22.4025], [-47.464, -22.4011], [-47.4649, -22.399], [-47.4663, -22.3976], [-47.4682, -22.3964], [-47.472, -22.3951], [-47.4731, -22.3928], [-47.4769, -22.3889], [-47.4797, -22.3839], [-47.4813, -22.3826], [-47.4835, -22.3799], [-47.484, -22.3779], [-47.4835, -22.3767], [-47.4802, -22.3744], [-47.4794, -22.3735], [-47.4778, -22.3697], [-47.4746, -22.3608], [-47.474, -22.3581], [-47.4742, -22.3527], [-47.4733, -22.3487], [-47.4715, -22.3454], [-47.4711, -22.3434], [-47.4715, -22.3409], [-47.4712, -22.34], [-47.4693, -22.3391], [-47.4686, -22.3379], [-47.4684, -22.3358], [-47.4689, -22.3294], [-47.4688, -22.3272], [-47.468, -22.3244], [-47.4672, -22.323], [-47.4657, -22.3215], [-47.4637, -22.3187], [-47.4629, -22.316], [-47.462, -22.3113], [-47.4622, -22.3091], [-47.4641, -22.3067], [-47.4676, -22.3072], [-47.468, -22.3062], [-47.4672, -22.3047], [-47.4662, -22.3008], [-47.4628, -22.2969], [-47.4626, -22.295], [-47.4632, -22.2912], [-47.4646, -22.2883], [-47.4664, -22.286], [-47.4683, -22.2843], [-47.4689, -22.2829], [-47.4691, -22.2801], [-47.4672, -22.2766], [-47.4657, -22.2684], [-47.4656, -22.2626], [-47.4665, -22.2591], [-47.4674, -22.2572], [-47.4683, -22.2541], [-47.469, -22.2501], [-47.4697, -22.2486], [-47.4698, -22.2454]]]}, "properties": {"codarea": "3543907"}}]};
+        const clustersBairro = [{"bairro": "Alto do Santana", "casos": 1, "latitude_cluster": -22.401889, "longitude_cluster": -47.572205, "idade_media": 55.0, "idade_minima": 55, "idade_maxima": 55, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 376.78, "ceps": "13504187", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 7, Alto do Santana, Rio Claro, São Paulo, Brasil", "resultado_osm": "Igreja do Nazareno, Rua Samambaia, Santana, Rio Claro"}, {"bairro": "Bom Retiro", "casos": 1, "latitude_cluster": -22.40678, "longitude_cluster": -47.601431, "idade_media": 34.0, "idade_minima": 34, "idade_maxima": 34, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 2832.11, "ceps": "13503614", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 4 JW, Bom Retiro, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 4 JW, Chácara Bom Retiro, Rio Claro"}, {"bairro": "Centro", "casos": 15, "latitude_cluster": -22.412349, "longitude_cluster": -47.558201, "idade_media": 58.9, "idade_minima": 39, "idade_maxima": 87, "casos_por_ano": "{\"2021\": 1, \"2022\": 3, \"2023\": 5, \"2024\": 3, \"2025\": 3}", "valor_total_sus": 34177.24, "ceps": "13500140, 13500150, 13500151, 13500170, 13500181, 13500230, 13500240, 13500390, 13500402, 13500420, 13500430, 13500470", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 1, Centro, Rio Claro, São Paulo, Brasil", "resultado_osm": "Centro Médico 1, Rua 2, Centro, Rio Claro"}, {"bairro": "Centro (Ajapi)", "casos": 3, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 58.3, "idade_minima": 46, "idade_maxima": 65, "casos_por_ano": "{\"2021\": 1, \"2024\": 1, \"2025\": 1}", "valor_total_sus": 10236.23, "ceps": "13508500, 13508502, 13508971", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Estrada Municipal Rio Claro - Ajapi, Centro (Ajapi), Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Centro (Assistência)", "casos": 1, "latitude_cluster": -22.498511, "longitude_cluster": -47.586779, "idade_media": 69.0, "idade_minima": 69, "idade_maxima": 69, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 428.64, "ceps": "13509602", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Estrada Fazenda Santa Rosa, Centro (Assistência), Rio Claro, São Paulo, Brasil", "resultado_osm": "Antiga Estrada Santa Rosa, Assistência, Rio Claro"}, {"bairro": "Chácara Luza", "casos": 2, "latitude_cluster": -22.431619, "longitude_cluster": -47.573821, "idade_media": 39.5, "idade_minima": 32, "idade_maxima": 47, "casos_por_ano": "{\"2024\": 1, \"2025\": 1}", "valor_total_sus": 6208.66, "ceps": "13502030, 13502034", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Chácara Luza, Rio Claro, São Paulo, Brasil", "resultado_osm": "Chácara Luza, Dona Angela, Rio Claro"}, {"bairro": "Cidade Claret", "casos": 1, "latitude_cluster": -22.413562, "longitude_cluster": -47.572781, "idade_media": 64.0, "idade_minima": 64, "idade_maxima": 64, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 2622.0, "ceps": "13503184", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Cidade Claret, Rio Claro, São Paulo, Brasil", "resultado_osm": "Cidade Claret, Jardim Centenário, Rio Claro"}, {"bairro": "Cidade Jardim", "casos": 7, "latitude_cluster": -22.419103, "longitude_cluster": -47.554438, "idade_media": 57.4, "idade_minima": 49, "idade_maxima": 82, "casos_por_ano": "{\"2021\": 2, \"2022\": 3, \"2025\": 2}", "valor_total_sus": 16059.54, "ceps": "13501020, 13501050, 13501060", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 1 CJ, Cidade Jardim, Rio Claro, São Paulo, Brasil", "resultado_osm": "Edificio Cidade Jardim, Rua Um Cj, Saúde, Rio Claro"}, {"bairro": "Cidade Nova", "casos": 5, "latitude_cluster": -22.404246, "longitude_cluster": -47.553599, "idade_media": 61.2, "idade_minima": 39, "idade_maxima": 88, "casos_por_ano": "{\"2022\": 2, \"2023\": 1, \"2024\": 1, \"2025\": 1}", "valor_total_sus": 8114.99, "ceps": "13506760, 13506770, 13506775, 13506807, 13506810", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 8 A, Cidade Nova, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida Oito A, Cidade Nova, Rio Claro"}, {"bairro": "Conjunto Habitacional Arco-Íris (Cecap)", "casos": 3, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 63.0, "idade_minima": 41, "idade_maxima": 81, "casos_por_ano": "{\"2022\": 1, \"2025\": 2}", "valor_total_sus": 7933.03, "ceps": "13506074, 13506088, 13506090", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua 1 C, Conjunto Habitacional Arco-Íris (Cecap), Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Conjunto Habitacional de Interesse Social Rio Claro H", "casos": 1, "latitude_cluster": -22.379639, "longitude_cluster": -47.552491, "idade_media": 46.0, "idade_minima": 46, "idade_maxima": 46, "casos_por_ano": "{\"2021\": 1}", "valor_total_sus": 2587.43, "ceps": "13504630", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Conjunto Habitacional de Interesse Social Rio Claro H, Rio Claro, São Paulo, Brasil", "resultado_osm": "Escola de futebol - 9 de Julho, Rua Seis JA, Distrito Indústrial, Rio Claro"}, {"bairro": "Conjunto Residencial Vila Verde", "casos": 3, "latitude_cluster": -22.375809, "longitude_cluster": -47.544228, "idade_media": 55.3, "idade_minima": 46, "idade_maxima": 62, "casos_por_ano": "{\"2022\": 1, \"2025\": 2}", "valor_total_sus": 11759.23, "ceps": "13506134, 13506139", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Conjunto Residencial Vila Verde, Rio Claro, São Paulo, Brasil", "resultado_osm": "Conjunto Residencial Vila Verde, Parque Mãe Preta, Rio Claro"}, {"bairro": "Consolação", "casos": 4, "latitude_cluster": -22.418922, "longitude_cluster": -47.571575, "idade_media": 56.8, "idade_minima": 40, "idade_maxima": 75, "casos_por_ano": "{\"2021\": 2, \"2023\": 2}", "valor_total_sus": 10952.47, "ceps": "13500100, 13500120, 13503420", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 11, Consolação, Rio Claro, São Paulo, Brasil", "resultado_osm": "Consolação, Dona Angela, Rio Claro"}, {"bairro": "Distrito Industrial", "casos": 1, "latitude_cluster": -22.351128, "longitude_cluster": -47.549366, "idade_media": 48.0, "idade_minima": 48, "idade_maxima": 48, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 3653.63, "ceps": "13505600", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida Brasil, Distrito Industrial, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida Brasil, Distrito Indústrial, Rio Claro"}, {"bairro": "Estádio", "casos": 6, "latitude_cluster": -22.424569, "longitude_cluster": -47.564838, "idade_media": 53.7, "idade_minima": 37, "idade_maxima": 63, "casos_por_ano": "{\"2021\": 1, \"2022\": 2, \"2023\": 1, \"2025\": 2}", "valor_total_sus": 15420.91, "ceps": "13501370, 13501388, 13501390, 13501410, 13501430", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Estádio, Rio Claro, São Paulo, Brasil", "resultado_osm": "Bairro do Estádio, Dona Angela, Rio Claro"}, {"bairro": "Jardim Alfredo Karan", "casos": 3, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 67.7, "idade_minima": 61, "idade_maxima": 73, "casos_por_ano": "{\"2023\": 1, \"2024\": 1, \"2025\": 1}", "valor_total_sus": 5492.5, "ceps": "13504080, 13504081, 13504083", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Avenida 54, Jardim Alfredo Karan, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim Anhangüera", "casos": 1, "latitude_cluster": -22.440966, "longitude_cluster": -47.564691, "idade_media": 54.0, "idade_minima": 54, "idade_maxima": 54, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 2505.87, "ceps": "13501590", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida Marginal 1, Jardim Anhangüera, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida Marginal Anhanguera, Rio Claro, Rio Claro"}, {"bairro": "Jardim Araucária", "casos": 8, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 53.9, "idade_minima": 43, "idade_maxima": 62, "casos_por_ano": "{\"2022\": 2, \"2023\": 1, \"2024\": 3, \"2025\": 2}", "valor_total_sus": 12342.15, "ceps": "13504821, 13504824, 13504825", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua 2, Jardim Araucária, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim Azul", "casos": 1, "latitude_cluster": -22.384617, "longitude_cluster": -47.577154, "idade_media": 61.0, "idade_minima": 61, "idade_maxima": 61, "casos_por_ano": "{\"2023\": 1}", "valor_total_sus": 428.64, "ceps": "13504227", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Azul, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Azul, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim Bela Vista", "casos": 4, "latitude_cluster": -22.397969, "longitude_cluster": -47.577127, "idade_media": 64.8, "idade_minima": 45, "idade_maxima": 80, "casos_por_ano": "{\"2021\": 2, \"2022\": 1, \"2024\": 1}", "valor_total_sus": 9248.38, "ceps": "13504260, 13504266, 13504268, 13504269", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 15, Jardim Bela Vista, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua Quinze, Jardim  Bela Vista, Rio Claro"}, {"bairro": "Jardim Boa Vista", "casos": 4, "latitude_cluster": -22.380582, "longitude_cluster": -47.587122, "idade_media": 67.5, "idade_minima": 51, "idade_maxima": 91, "casos_por_ano": "{\"2024\": 1, \"2025\": 3}", "valor_total_sus": 7290.75, "ceps": "13504686, 13504687, 13504715", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Boa Vista, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Boa Vista, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim Bom Sucesso", "casos": 2, "latitude_cluster": -22.404263, "longitude_cluster": -47.606214, "idade_media": 37.5, "idade_minima": 33, "idade_maxima": 42, "casos_por_ano": "{\"2023\": 1, \"2025\": 1}", "valor_total_sus": 5141.63, "ceps": "13503674, 13503683", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 14 JW, Jardim Bom Sucesso, Rio Claro, São Paulo, Brasil", "resultado_osm": "Centro de Referência de Assistência Social Bom Sucesso, Rua 5 JW, Bom Retiro, Rio Claro"}, {"bairro": "Jardim Centenário", "casos": 3, "latitude_cluster": -22.41669, "longitude_cluster": -47.587278, "idade_media": 44.0, "idade_minima": 43, "idade_maxima": 45, "casos_por_ano": "{\"2021\": 2, \"2023\": 1}", "valor_total_sus": 5396.96, "ceps": "13503505, 13503512", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 8 JC, Jardim Centenário, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida Oito A Jc, Jardim Centenário, Rio Claro"}, {"bairro": "Jardim Cherveson", "casos": 7, "latitude_cluster": -22.382809, "longitude_cluster": -47.574149, "idade_media": 56.7, "idade_minima": 45, "idade_maxima": 76, "casos_por_ano": "{\"2021\": 1, \"2022\": 2, \"2024\": 4}", "valor_total_sus": 10719.44, "ceps": "13505294, 13505295, 13505300, 13505305, 13505320", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua M 17A, Jardim Cherveson, Rio Claro, São Paulo, Brasil", "resultado_osm": "Cherveson, Rua 6, Santana, Rio Claro"}, {"bairro": "Jardim Claret", "casos": 2, "latitude_cluster": -22.413562, "longitude_cluster": -47.572781, "idade_media": 71.0, "idade_minima": 50, "idade_maxima": 92, "casos_por_ano": "{\"2021\": 1, \"2025\": 1}", "valor_total_sus": 3047.22, "ceps": "13503210", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Claret, Rio Claro, São Paulo, Brasil", "resultado_osm": "Cidade Claret, Jardim Centenário, Rio Claro"}, {"bairro": "Jardim Conduta", "casos": 2, "latitude_cluster": -22.427125, "longitude_cluster": -47.548812, "idade_media": 56.0, "idade_minima": 56, "idade_maxima": 56, "casos_por_ano": "{\"2022\": 2}", "valor_total_sus": 2105.5, "ceps": "13506873", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Conduta, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Conduta, Dona Angela, Rio Claro"}, {"bairro": "Jardim das Nações I", "casos": 1, "latitude_cluster": -22.448108, "longitude_cluster": -47.588218, "idade_media": 48.0, "idade_minima": 48, "idade_maxima": 48, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 3621.23, "ceps": "13502771", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim das Nações I, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim das Nações I, Jardim Nova Rio Claro, Rio Claro"}, {"bairro": "Jardim das Paineiras", "casos": 1, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 58.0, "idade_minima": 58, "idade_maxima": 58, "casos_por_ano": "{\"2024\": 1}", "valor_total_sus": 2628.21, "ceps": "13504642", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Avenida 52 PA, Jardim das Paineiras, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim do Horto", "casos": 2, "latitude_cluster": -22.428846, "longitude_cluster": -47.551725, "idade_media": 49.0, "idade_minima": 43, "idade_maxima": 55, "casos_por_ano": "{\"2021\": 1, \"2023\": 1}", "valor_total_sus": 4552.27, "ceps": "13506899", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rodovia Constantine Peruchi, Jardim do Horto, Rio Claro, São Paulo, Brasil", "resultado_osm": "Vila do Horto Residencial, Rodovia Constante Peruchi, Jardim do Horto, Rio Claro"}, {"bairro": "Jardim Dona Regina Picelli", "casos": 4, "latitude_cluster": -22.368338, "longitude_cluster": -47.570862, "idade_media": 50.8, "idade_minima": 44, "idade_maxima": 58, "casos_por_ano": "{\"2021\": 2, \"2025\": 2}", "valor_total_sus": 10492.59, "ceps": "13505220, 13505228", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua do Sobrado, Jardim Dona Regina Picelli, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Dona Regina Picelli, Distrito Indústrial, Rio Claro"}, {"bairro": "Jardim Donângela", "casos": 2, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 80.0, "idade_minima": 80, "idade_maxima": 80, "casos_por_ano": "{\"2024\": 2}", "valor_total_sus": 3225.41, "ceps": "13500050", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua 6, Jardim Donângela, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim Esmeralda", "casos": 2, "latitude_cluster": -22.410704, "longitude_cluster": -47.562723, "idade_media": 49.0, "idade_minima": 45, "idade_maxima": 53, "casos_por_ano": "{\"2022\": 1, \"2024\": 1}", "valor_total_sus": 5419.54, "ceps": "13502270", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Esmeralda, Rio Claro, São Paulo, Brasil", "resultado_osm": "Ótica Esmeralda, Av. 1, Cidade Nova, Rio Claro"}, {"bairro": "Jardim Floridiana", "casos": 15, "latitude_cluster": -22.382515, "longitude_cluster": -47.558641, "idade_media": 61.9, "idade_minima": 47, "idade_maxima": 78, "casos_por_ano": "{\"2021\": 2, \"2022\": 3, \"2023\": 5, \"2024\": 2, \"2025\": 3}", "valor_total_sus": 35720.27, "ceps": "13505005, 13505007, 13505008, 13505010, 13505011, 13505012, 13505060, 13505070, 13505083", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida M 25, Jardim Floridiana, Rio Claro, São Paulo, Brasil", "resultado_osm": "Floridiana Tênis Clube, Avenida Um Jf, Jardim Floridiana, Rio Claro"}, {"bairro": "Jardim Guanabara", "casos": 2, "latitude_cluster": -22.43664, "longitude_cluster": -47.580683, "idade_media": 54.5, "idade_minima": 42, "idade_maxima": 67, "casos_por_ano": "{\"2025\": 2}", "valor_total_sus": 7537.27, "ceps": "13502396, 13502410", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Guanabara, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Guanabara, Jardim Nova Rio Claro, Rio Claro"}, {"bairro": "Jardim Guanabara II", "casos": 3, "latitude_cluster": -22.438289, "longitude_cluster": -47.57849, "idade_media": 43.0, "idade_minima": 29, "idade_maxima": 60, "casos_por_ano": "{\"2021\": 1, \"2023\": 1, \"2025\": 1}", "valor_total_sus": 8997.35, "ceps": "13502420, 13502470", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Guanabara II, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Guanabara II, Jardim Nova Rio Claro, Rio Claro"}, {"bairro": "Jardim Hipódromo", "casos": 3, "latitude_cluster": -22.382063, "longitude_cluster": -47.564251, "idade_media": 53.0, "idade_minima": 53, "idade_maxima": 53, "casos_por_ano": "{\"2021\": 3}", "valor_total_sus": 3092.1, "ceps": "13505100", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Hipódromo, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Hipódromo, Santana, Rio Claro"}, {"bairro": "Jardim Independência", "casos": 4, "latitude_cluster": -22.381876, "longitude_cluster": -47.564076, "idade_media": 49.5, "idade_minima": 42, "idade_maxima": 58, "casos_por_ano": "{\"2021\": 1, \"2022\": 2, \"2025\": 1}", "valor_total_sus": 9641.09, "ceps": "13505260, 13505280", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua M 11, Jardim Independência, Rio Claro, São Paulo, Brasil", "resultado_osm": "Centro de Referência de Assistência Social Independência, Rua M 7, Jardim Hipódromo, Rio Claro"}, {"bairro": "Jardim INOCOOP", "casos": 5, "latitude_cluster": -22.427094, "longitude_cluster": -47.577239, "idade_media": 61.4, "idade_minima": 47, "idade_maxima": 75, "casos_por_ano": "{\"2021\": 1, \"2023\": 2, \"2025\": 2}", "valor_total_sus": 13588.34, "ceps": "13502011, 13502018", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim INOCOOP, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Inocoop, Jardim Centenário, Rio Claro"}, {"bairro": "Jardim Ipanema (Expansão)", "casos": 3, "latitude_cluster": -22.37965, "longitude_cluster": -47.576329, "idade_media": 78.0, "idade_minima": 78, "idade_maxima": 78, "casos_por_ano": "{\"2021\": 2, \"2022\": 1}", "valor_total_sus": 1549.47, "ceps": "13505420", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Ipanema (Expansão), Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Ipanema, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim Leblon", "casos": 1, "latitude_cluster": -22.43501, "longitude_cluster": -47.55862, "idade_media": 55.0, "idade_minima": 55, "idade_maxima": 55, "casos_por_ano": "{\"2024\": 1}", "valor_total_sus": 2750.55, "ceps": "13501658", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Leblon, Rio Claro, São Paulo, Brasil", "resultado_osm": "Praça Jardim Leblon, Dona Angela, Rio Claro"}, {"bairro": "Jardim Maria Cristina", "casos": 1, "latitude_cluster": -22.416252, "longitude_cluster": -47.59007, "idade_media": 41.0, "idade_minima": 41, "idade_maxima": 41, "casos_por_ano": "{\"2021\": 1}", "valor_total_sus": 5105.87, "ceps": "13503520", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Maria Cristina, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Maria Cristina, Jardim Centenário, Rio Claro"}, {"bairro": "Jardim Mirassol", "casos": 2, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 40.5, "idade_minima": 40, "idade_maxima": 41, "casos_por_ano": "{\"2023\": 2}", "valor_total_sus": 5541.88, "ceps": "13503110, 13503143", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua 24, Jardim Mirassol, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim Nova Rio Claro", "casos": 1, "latitude_cluster": -22.43114, "longitude_cluster": -47.598056, "idade_media": 41.0, "idade_minima": 41, "idade_maxima": 41, "casos_por_ano": "{\"2024\": 1}", "valor_total_sus": 1702.54, "ceps": "13502323", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 25 NR, Jardim Nova Rio Claro, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua Vinte e Cinco Nr, Jardim Nova Rio Claro, Rio Claro"}, {"bairro": "Jardim Nova Veneza", "casos": 1, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 46.0, "idade_minima": 46, "idade_maxima": 46, "casos_por_ano": "{\"2023\": 1}", "valor_total_sus": 3189.05, "ceps": "13503554", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua 5 NV, Jardim Nova Veneza, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim Novo", "casos": 15, "latitude_cluster": -22.451416, "longitude_cluster": -47.578269, "idade_media": 53.9, "idade_minima": 41, "idade_maxima": 73, "casos_por_ano": "{\"2021\": 3, \"2023\": 3, \"2024\": 3, \"2025\": 6}", "valor_total_sus": 30776.37, "ceps": "13502740, 13502745, 13502748, 13502749, 13502751, 13502754, 13502759, 13502761, 13502762", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 1 JN, Jardim Novo, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida 1 JN, Rio Claro, Rio Claro"}, {"bairro": "Jardim Novo II", "casos": 1, "latitude_cluster": -22.447299, "longitude_cluster": -47.585395, "idade_media": 41.0, "idade_minima": 41, "idade_maxima": 41, "casos_por_ano": "{\"2023\": 1}", "valor_total_sus": 3701.05, "ceps": "13502763", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 19 JN, Jardim Novo II, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 19 JN, Jardim Nova Rio Claro, Rio Claro"}, {"bairro": "Jardim Olinda", "casos": 2, "latitude_cluster": -22.387804, "longitude_cluster": -47.57682, "idade_media": 53.0, "idade_minima": 45, "idade_maxima": 61, "casos_por_ano": "{\"2025\": 2}", "valor_total_sus": 7160.52, "ceps": "13504210, 13504220", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Olinda, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Olinda, Jardim  Bela Vista, Rio Claro"}, {"bairro": "Jardim Panorama", "casos": 3, "latitude_cluster": -22.387273, "longitude_cluster": -47.592727, "idade_media": 49.0, "idade_minima": 43, "idade_maxima": 58, "casos_por_ano": "{\"2023\": 1, \"2025\": 2}", "valor_total_sus": 6262.98, "ceps": "13504646, 13504660", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 60 PA, Jardim Panorama, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida 60 PA, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim Parque Residencial", "casos": 1, "latitude_cluster": -22.374503, "longitude_cluster": -47.551269, "idade_media": 58.0, "idade_minima": 58, "idade_maxima": 58, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 428.64, "ceps": "13506121", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 84 A, Jardim Parque Residencial, Rio Claro, São Paulo, Brasil", "resultado_osm": "Condomínio Parque das Árvores, Avenida 84 A, Jardim Parque Residencial, Rio Claro"}, {"bairro": "Jardim Paulista", "casos": 2, "latitude_cluster": -22.418387, "longitude_cluster": -47.582107, "idade_media": 71.0, "idade_minima": 58, "idade_maxima": 84, "casos_por_ano": "{\"2021\": 1, \"2022\": 1}", "valor_total_sus": 3818.96, "ceps": "13503538, 13503540", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Paulista, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Paulista, Jardim Centenário, Rio Claro"}, {"bairro": "Jardim Paulista II", "casos": 2, "latitude_cluster": -22.419724, "longitude_cluster": -47.582571, "idade_media": 50.0, "idade_minima": 44, "idade_maxima": 56, "casos_por_ano": "{\"2025\": 2}", "valor_total_sus": 4132.77, "ceps": "13504307, 13504310", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 25, Jardim Paulista II, Rio Claro, São Paulo, Brasil", "resultado_osm": "Residencial Jardim Paulista, Rua 30, Jardim Paulista, Rio Claro"}, {"bairro": "Jardim Portugal", "casos": 2, "latitude_cluster": -22.388612, "longitude_cluster": -47.567909, "idade_media": 69.5, "idade_minima": 64, "idade_maxima": 75, "casos_por_ano": "{\"2021\": 1, \"2025\": 1}", "valor_total_sus": 7564.45, "ceps": "13504070", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Portugal, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Portugal, Santana, Rio Claro"}, {"bairro": "Jardim Primavera", "casos": 3, "latitude_cluster": -22.374532, "longitude_cluster": -47.550355, "idade_media": 73.3, "idade_minima": 68, "idade_maxima": 84, "casos_por_ano": "{\"2021\": 1, \"2023\": 2}", "valor_total_sus": 8910.55, "ceps": "13504050, 13504060", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 46, Jardim Primavera, Rio Claro, São Paulo, Brasil", "resultado_osm": "Condominio Residencial Primavera, Avenida 80 A, Distrito Indústrial, Rio Claro"}, {"bairro": "Jardim Progresso", "casos": 1, "latitude_cluster": -22.370357, "longitude_cluster": -47.58158, "idade_media": 65.0, "idade_minima": 65, "idade_maxima": 65, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 2676.99, "ceps": "13505531", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Progresso, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Progresso II, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim Residencial das Palmeiras", "casos": 12, "latitude_cluster": -22.441312, "longitude_cluster": -47.582215, "idade_media": 60.6, "idade_minima": 37, "idade_maxima": 77, "casos_por_ano": "{\"2021\": 2, \"2022\": 3, \"2024\": 5, \"2025\": 2}", "valor_total_sus": 34412.96, "ceps": "13502100, 13502112, 13502115, 13502120, 13502170, 13502180, 13502191", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida dos Costas, Jardim Residencial das Palmeiras, Rio Claro, São Paulo, Brasil", "resultado_osm": "Condomínio Residencial Reserva das Palmeiras, Estrada dos Costas, Jardim Residencial das Palmeiras, Rio Claro"}, {"bairro": "Jardim Residencial Santa Eliza", "casos": 2, "latitude_cluster": -22.397356, "longitude_cluster": -47.589656, "idade_media": 74.0, "idade_minima": 73, "idade_maxima": 75, "casos_por_ano": "{\"2022\": 1, \"2024\": 1}", "valor_total_sus": 4009.34, "ceps": "13504605, 13504617", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 26 SE, Jardim Residencial Santa Eliza, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 26 SE, Jardim Residencial Santa Eliza, Rio Claro"}, {"bairro": "Jardim Residencial São José", "casos": 4, "latitude_cluster": -22.378777, "longitude_cluster": -47.580672, "idade_media": 54.2, "idade_minima": 49, "idade_maxima": 60, "casos_por_ano": "{\"2022\": 1, \"2024\": 2, \"2025\": 1}", "valor_total_sus": 6495.03, "ceps": "13505491, 13505493, 13505500", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida M 45, Jardim Residencial São José, Rio Claro, São Paulo, Brasil", "resultado_osm": "Centro Municipal de Convivência Jardim São José, Avenida M Quarenta e Três, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim Rio Claro", "casos": 1, "latitude_cluster": -22.421735, "longitude_cluster": -47.573688, "idade_media": 75.0, "idade_minima": 75, "idade_maxima": 75, "casos_por_ano": "{\"2022\": 1}", "valor_total_sus": 531.41, "ceps": "13503751", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 21, Jardim Rio Claro, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 21, Jardim Centenário, Rio Claro"}, {"bairro": "Jardim Santa Maria", "casos": 3, "latitude_cluster": -22.3793, "longitude_cluster": -47.585139, "idade_media": 49.0, "idade_minima": 39, "idade_maxima": 58, "casos_por_ano": "{\"2021\": 1, \"2022\": 1, \"2023\": 1}", "valor_total_sus": 9285.45, "ceps": "13504712, 13504714, 13504727", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 16, Jardim Santa Maria, Rio Claro, São Paulo, Brasil", "resultado_osm": "Capela Santa Maria, Rua 15, Jardim Panorama, Rio Claro"}, {"bairro": "Jardim São Paulo", "casos": 7, "latitude_cluster": -22.405803, "longitude_cluster": -47.583585, "idade_media": 48.0, "idade_minima": 39, "idade_maxima": 65, "casos_por_ano": "{\"2021\": 3, \"2022\": 1, \"2023\": 1, \"2025\": 2}", "valor_total_sus": 17340.15, "ceps": "13503003, 13503007, 13503010, 13503021, 13503022, 13503050", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim São Paulo, Rio Claro, São Paulo, Brasil", "resultado_osm": "Reservatório Jardim São Paulo, Avenida Castelo Branco, Chácara Bom Retiro, Rio Claro"}, {"bairro": "Jardim Terras de Ajapi (Ajapi)", "casos": 1, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 55.0, "idade_minima": 55, "idade_maxima": 55, "casos_por_ano": "{\"2021\": 1}", "valor_total_sus": 1539.42, "ceps": "13508638", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua 6A JTA, Jardim Terras de Ajapi (Ajapi), Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Jardim Vilage", "casos": 4, "latitude_cluster": -22.375229, "longitude_cluster": -47.553697, "idade_media": 45.0, "idade_minima": 30, "idade_maxima": 61, "casos_por_ano": "{\"2021\": 1, \"2023\": 2, \"2024\": 1}", "valor_total_sus": 6533.79, "ceps": "13506095, 13506104, 13506110", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 80 A, Jardim Vilage, Rio Claro, São Paulo, Brasil", "resultado_osm": "Condomínio Jardim Village, Avenida 80 A, Jardim Vilage, Rio Claro"}, {"bairro": "Jardim Wenzel", "casos": 1, "latitude_cluster": -22.389035, "longitude_cluster": -47.586693, "idade_media": 64.0, "idade_minima": 64, "idade_maxima": 64, "casos_por_ano": "{\"2022\": 1}", "valor_total_sus": 2595.43, "ceps": "13504300", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Jardim Wenzel, Rio Claro, São Paulo, Brasil", "resultado_osm": "Jardim Wenzel, Jardim Panorama, Rio Claro"}, {"bairro": "Loteamento Fontes e Bosques Alam Grei", "casos": 1, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 74.0, "idade_minima": 74, "idade_maxima": 74, "casos_por_ano": "{\"2025\": 1}", "valor_total_sus": 410.49, "ceps": "13507792", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Caminho 2, Loteamento Fontes e Bosques Alam Grei, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Loteamento Sebastião dos Santos Lima", "casos": 1, "latitude_cluster": -22.419528, "longitude_cluster": -47.592795, "idade_media": 45.0, "idade_minima": 45, "idade_maxima": 45, "casos_por_ano": "{\"2024\": 1}", "valor_total_sus": 2748.31, "ceps": "13503587", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Loteamento Sebastião dos Santos Lima, Rio Claro, São Paulo, Brasil", "resultado_osm": "Loteamento Sebastião dos Santos Lima, Jardim Centenário, Rio Claro"}, {"bairro": "Nova Ajapi (Ajapi)", "casos": 1, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 67.0, "idade_minima": 67, "idade_maxima": 67, "casos_por_ano": "{\"2022\": 1}", "valor_total_sus": 367.44, "ceps": "13508524", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Avenida 5 Ajapi, Nova Ajapi (Ajapi), Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Novo Jardim Wenzel", "casos": 6, "latitude_cluster": -22.404386, "longitude_cluster": -47.602672, "idade_media": 54.0, "idade_minima": 36, "idade_maxima": 75, "casos_por_ano": "{\"2021\": 1, \"2022\": 1, \"2023\": 2, \"2025\": 2}", "valor_total_sus": 16494.31, "ceps": "13503656, 13503658, 13503661, 13503665", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Novo Jardim Wenzel, Rio Claro, São Paulo, Brasil", "resultado_osm": "Novo Jardim Wenzel, Jardim Residencial Santa Eliza, Rio Claro"}, {"bairro": "Parque das Indústrias", "casos": 6, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 60.0, "idade_minima": 45, "idade_maxima": 78, "casos_por_ano": "{\"2022\": 3, \"2025\": 3}", "valor_total_sus": 8129.06, "ceps": "13505120, 13505373, 13505380", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Rua M 8, Parque das Indústrias, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Parque Mãe Preta", "casos": 16, "latitude_cluster": -22.374261, "longitude_cluster": -47.54188, "idade_media": 55.8, "idade_minima": 42, "idade_maxima": 69, "casos_por_ano": "{\"2021\": 3, \"2022\": 1, \"2023\": 7, \"2024\": 1, \"2025\": 4}", "valor_total_sus": 49808.61, "ceps": "13506160, 13506170, 13506176, 13506178, 13506179, 13506180, 13506181, 13506188, 13506192, 13506194", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 1 MP, Parque Mãe Preta, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida 1 MP, Parque Mãe Preta, Rio Claro"}, {"bairro": "Parque Residencial Brasília", "casos": 4, "latitude_cluster": -22.433514, "longitude_cluster": -47.580529, "idade_media": 60.5, "idade_minima": 51, "idade_maxima": 67, "casos_por_ano": "{\"2023\": 2, \"2024\": 1, \"2025\": 1}", "valor_total_sus": 12522.81, "ceps": "13502290, 13502291, 13502292, 13502295", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Parque Residencial Brasília, Rio Claro, São Paulo, Brasil", "resultado_osm": "Parque Residencial Brasília, Jardim Nova Rio Claro, Rio Claro"}, {"bairro": "Parque Universitário", "casos": 7, "latitude_cluster": -22.393264, "longitude_cluster": -47.579142, "idade_media": 54.3, "idade_minima": 47, "idade_maxima": 64, "casos_por_ano": "{\"2021\": 4, \"2022\": 1, \"2024\": 1, \"2025\": 1}", "valor_total_sus": 14181.15, "ceps": "13504361, 13504363, 13504400, 13504450", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 17, Parque Universitário, Rio Claro, São Paulo, Brasil", "resultado_osm": "Praça do Parque Universitário, Jardim  Bela Vista, Rio Claro"}, {"bairro": "Recanto das Pedras (Assistência)", "casos": 3, "latitude_cluster": -22.429726, "longitude_cluster": -47.582287, "idade_media": 55.0, "idade_minima": 47, "idade_maxima": 60, "casos_por_ano": "{\"2021\": 1, \"2023\": 1, \"2025\": 1}", "valor_total_sus": 7697.21, "ceps": "13509656, 13509670, 13509676", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Recanto das Pedras (Assistência), Rio Claro, São Paulo, Brasil", "resultado_osm": "Cellshop Assistência Técnica, Avenida 7 JP, Jardim das Palmeiras, Rio Claro"}, {"bairro": "Residencial Bosques de Rio Claro", "casos": 3, "latitude_cluster": -22.381236, "longitude_cluster": -47.580161, "idade_media": 49.0, "idade_minima": 34, "idade_maxima": 57, "casos_por_ano": "{\"2022\": 2, \"2023\": 1}", "valor_total_sus": 6696.1, "ceps": "13505577, 13505584", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 8 BRC, Residencial Bosques de Rio Claro, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 8 BRC, Jardim Panorama, Rio Claro"}, {"bairro": "Residencial das Flores", "casos": 3, "latitude_cluster": -22.367138, "longitude_cluster": -47.563139, "idade_media": 63.3, "idade_minima": 62, "idade_maxima": 64, "casos_por_ano": "{\"2022\": 1, \"2023\": 2}", "valor_total_sus": 8689.01, "ceps": "13505494, 13505511", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida M 51, Residencial das Flores, Rio Claro, São Paulo, Brasil", "resultado_osm": "CONDOMINIO VILLA DAS FLORES RESIDENCIAL, AVENIDA 3A VS, VILAS DO SOBRADO, Rio Claro"}, {"bairro": "Santana", "casos": 6, "latitude_cluster": -22.400505, "longitude_cluster": -47.573666, "idade_media": 65.7, "idade_minima": 52, "idade_maxima": 76, "casos_por_ano": "{\"2021\": 1, \"2022\": 3, \"2023\": 1, \"2025\": 1}", "valor_total_sus": 12487.11, "ceps": "13500570, 13500576, 13504097", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua Samambaia, Santana, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua Samambaia, Santana, Rio Claro"}, {"bairro": "Saúde", "casos": 2, "latitude_cluster": -22.415182, "longitude_cluster": -47.550615, "idade_media": 62.5, "idade_minima": 50, "idade_maxima": 75, "casos_por_ano": "{\"2021\": 1, \"2025\": 1}", "valor_total_sus": 6486.92, "ceps": "13500320, 13500340", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida 17, Saúde, Rio Claro, São Paulo, Brasil", "resultado_osm": "Avenida P 17, Saúde, Rio Claro"}, {"bairro": "Vila Alemã", "casos": 16, "latitude_cluster": -22.39597, "longitude_cluster": -47.556396, "idade_media": 56.9, "idade_minima": 43, "idade_maxima": 76, "casos_por_ano": "{\"2021\": 1, \"2022\": 1, \"2023\": 5, \"2024\": 4, \"2025\": 5}", "valor_total_sus": 42410.11, "ceps": "13506561, 13506569, 13506590, 13506620, 13506660, 13506661, 13506662, 13506664, 13506666, 13506680, 13506685, 13506690", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Vila Alemã, Rio Claro, São Paulo, Brasil", "resultado_osm": "Vila Alemã, Bela Vista, Rio Claro"}, {"bairro": "Vila Aparecida", "casos": 7, "latitude_cluster": -22.398077, "longitude_cluster": -47.562704, "idade_media": 56.0, "idade_minima": 34, "idade_maxima": 73, "casos_por_ano": "{\"2021\": 2, \"2022\": 1, \"2023\": 1, \"2024\": 2, \"2025\": 1}", "valor_total_sus": 14385.9, "ceps": "13500511, 13500540, 13500550", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Vila Aparecida, Rio Claro, São Paulo, Brasil", "resultado_osm": "Vila Aparecida, Santana, Rio Claro"}, {"bairro": "Vila Bela Vista", "casos": 1, "latitude_cluster": -22.396931, "longitude_cluster": -47.549861, "idade_media": 68.0, "idade_minima": 68, "idade_maxima": 68, "casos_por_ano": "{\"2021\": 1}", "valor_total_sus": 2554.65, "ceps": "13506749", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 14 B, Vila Bela Vista, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua Onze B, Bela Vista, Rio Claro"}, {"bairro": "Vila Cristina", "casos": 5, "latitude_cluster": -22.384317, "longitude_cluster": -47.550393, "idade_media": 53.4, "idade_minima": 33, "idade_maxima": 68, "casos_por_ano": "{\"2022\": 1, \"2023\": 3, \"2025\": 1}", "valor_total_sus": 11417.86, "ceps": "13506460, 13506480, 13506494", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Vila Cristina, Rio Claro, São Paulo, Brasil", "resultado_osm": "Vila Cristina, Bela Vista, Rio Claro"}, {"bairro": "Vila di Napoli (Ajapi)", "casos": 1, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 67.0, "idade_minima": 67, "idade_maxima": 67, "casos_por_ano": "{\"2021\": 1}", "valor_total_sus": 407.44, "ceps": "13508534", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Avenida 15 Ajapi, Vila di Napoli (Ajapi), Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Vila do Rádio", "casos": 1, "latitude_cluster": -22.413257, "longitude_cluster": -47.568414, "idade_media": 70.0, "idade_minima": 70, "idade_maxima": 70, "casos_por_ano": "{\"2024\": 1}", "valor_total_sus": 2840.11, "ceps": "13500260", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 13, Vila do Rádio, Rio Claro, São Paulo, Brasil", "resultado_osm": "Travessa do Radio, Dona Angela, Rio Claro"}, {"bairro": "Vila Indaiá", "casos": 7, "latitude_cluster": null, "longitude_cluster": null, "idade_media": 57.7, "idade_minima": 41, "idade_maxima": 79, "casos_por_ano": "{\"2021\": 1, \"2022\": 2, \"2023\": 1, \"2025\": 3}", "valor_total_sus": 14101.87, "ceps": "13506705, 13506715, 13506720, 13506738, 13506746", "fonte_localizacao": "Sem resultado — revisão necessária", "consulta_localizacao": "Avenida 22 A, Vila Indaiá, Rio Claro, São Paulo, Brasil", "resultado_osm": ""}, {"bairro": "Vila Martins", "casos": 1, "latitude_cluster": -22.387728, "longitude_cluster": -47.558985, "idade_media": 58.0, "idade_minima": 58, "idade_maxima": 58, "casos_por_ano": "{\"2024\": 1}", "valor_total_sus": 3580.45, "ceps": "13505145", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Vila Martins, Rio Claro, São Paulo, Brasil", "resultado_osm": "Vila Martins, Bela Vista, Rio Claro"}, {"bairro": "Vila Nova", "casos": 9, "latitude_cluster": -22.410967, "longitude_cluster": -47.55888, "idade_media": 58.7, "idade_minima": 40, "idade_maxima": 84, "casos_por_ano": "{\"2021\": 2, \"2022\": 1, \"2023\": 1, \"2024\": 2, \"2025\": 3}", "valor_total_sus": 21115.53, "ceps": "13506550, 13506555, 13506556, 13506557", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 9 A, Vila Nova, Rio Claro, São Paulo, Brasil", "resultado_osm": "Grupo Ginástico Rio Clarense, Rua 2, Centro, Rio Claro"}, {"bairro": "Vila Operária", "casos": 2, "latitude_cluster": -22.387629, "longitude_cluster": -47.569672, "idade_media": 68.5, "idade_minima": 64, "idade_maxima": 73, "casos_por_ano": "{\"2021\": 1, \"2025\": 1}", "valor_total_sus": 5345.98, "ceps": "13504092, 13504120", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 4, Vila Operária, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 4, Vila Operária, Rio Claro"}, {"bairro": "Vila Paulista", "casos": 10, "latitude_cluster": -22.395757, "longitude_cluster": -47.544136, "idade_media": 67.2, "idade_minima": 43, "idade_maxima": 89, "casos_por_ano": "{\"2021\": 3, \"2022\": 3, \"2023\": 2, \"2024\": 1, \"2025\": 1}", "valor_total_sus": 21304.77, "ceps": "13506825, 13506826, 13506828, 13506833, 13506836, 13506850", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Avenida P 13, Vila Paulista, Rio Claro, São Paulo, Brasil", "resultado_osm": "Universidade Estadual Paulista, Avenida Vinte e Quatro A, Bela Vista, Rio Claro"}, {"bairro": "Vila Saibreiro", "casos": 3, "latitude_cluster": -22.389419, "longitude_cluster": -47.562255, "idade_media": 53.3, "idade_minima": 43, "idade_maxima": 74, "casos_por_ano": "{\"2021\": 1, \"2022\": 2}", "valor_total_sus": 3531.83, "ceps": "13504000, 13504011", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua Saibreiro 1, Vila Saibreiro, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua Saibreiro Três, Santana, Rio Claro"}, {"bairro": "Vila São Miguel", "casos": 3, "latitude_cluster": -22.386417, "longitude_cluster": -47.542546, "idade_media": 68.3, "idade_minima": 60, "idade_maxima": 78, "casos_por_ano": "{\"2021\": 1, \"2022\": 1, \"2024\": 1}", "valor_total_sus": 6548.68, "ceps": "13506403, 13506430, 13506450", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Vila São Miguel, Rio Claro, São Paulo, Brasil", "resultado_osm": "Ecoponto São Miguel, Avenida Ulysses Guimarães, Vila Paulista, Rio Claro"}, {"bairro": "Zona Central", "casos": 9, "latitude_cluster": -22.413163, "longitude_cluster": -47.559733, "idade_media": 59.8, "idade_minima": 39, "idade_maxima": 82, "casos_por_ano": "{\"2021\": 3, \"2022\": 1, \"2023\": 1, \"2024\": 1, \"2025\": 3}", "valor_total_sus": 26360.65, "ceps": "13500143, 13500190, 13500210", "fonte_localizacao": "OpenStreetMap/Photon", "consulta_localizacao": "Rua 7, Zona Central, Rio Claro, São Paulo, Brasil", "resultado_osm": "Rua 4, Zona Central, Rio Claro"}];
+
+        let filtroAnoAtivo = 'todos';
+        let filtroFaixaAtiva = 'todas';
+        let buscaBairroTexto = '';
+        let listaBairrosAtual = [];
+        let bairrosGeoJSON = null;
+
+        // Coordenada central de Rio Claro (SP)
+        const centerRC = [-22.4149, -47.5614];
+        
+        // Inicializar Mapa
+        const map = L.map('map', {
+            center: centerRC,
+            zoom: 12.8,
+            zoomControl: false,
+            minZoom: 10,
+            maxZoom: 18
+        });
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Provedores de Basemap 100% LIVRES DE API KEY (sem watermark nem avisos)
+        const basemaps = {
+            light: L.layerGroup([
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+                    maxZoom: 16
+                }),
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 16
+                })
+            ]),
+            dark: L.layerGroup([
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+                    maxZoom: 16
+                }),
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 16
+                })
+            ]),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS',
+                maxZoom: 18
+            }),
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            })
+        };
+
+        let activeBasemap = basemaps.light;
+        activeBasemap.addTo(map);
+
+        function setBasemap(type, btnEl) {
+            if (activeBasemap) map.removeLayer(activeBasemap);
+            activeBasemap = basemaps[type];
+            activeBasemap.addTo(map);
+
+            document.querySelectorAll('.basemap-btn').forEach(btn => btn.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+        }
+
+        // Grupos de Camadas
+        let bairrosLayer = null;
+        let heatLayer = null;
+        let clusterGroup = null;
+        let municipioLayer = null;
+
+        // As posições são calculadas fora do mapa por Registro -> CEP ->
+        // endereço/bairro do CEP -> geocodificação OSM. Elas não usam os
+        // polígonos nem as coordenadas anteriores do mapa.
+        function normalizarBairro(nome) {
+            return String(nome || '')
+                .normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        const coordenadasClusterPorBairro = new Map(
+            clustersBairro
+                .filter(item => item.latitude_cluster !== null && item.longitude_cluster !== null)
+                .map(item => [normalizarBairro(item.bairro), item])
+        );
+
+        // Adicionar Limite Municipal de Rio Claro com borda destacada
+        municipioLayer = L.geoJSON(municipioGeoJSON, {
+            style: {
+                color: '#f43f5e',
+                weight: 2.5,
+                dashArray: '6, 6',
+                fillColor: 'transparent',
+                fillOpacity: 0
+            }
+        }).addTo(map);
+
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            sb.classList.toggle('collapsed');
+        }
+
+        function filtrarAno(ano, el) {
+            filtroAnoAtivo = ano;
+            document.querySelectorAll('#filterAno .chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            aplicarFiltros();
+        }
+
+        function filtrarFaixa(faixa, el) {
+            filtroFaixaAtiva = faixa;
+            document.querySelectorAll('#filterIdade .chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            aplicarFiltros();
+        }
+
+        function filtrarListaBairros(texto) {
+            buscaBairroTexto = texto.toLowerCase().trim();
+            renderizarListaBairros();
+        }
+
+        function atendeFiltros(item) {
+            if (filtroAnoAtivo !== 'todos' && item.ano !== filtroAnoAtivo) return false;
+            
+            if (filtroFaixaAtiva !== 'todas') {
+                const id = item.idade;
+                if (filtroFaixaAtiva === 'ate40' && id >= 40) return false;
+                if (filtroFaixaAtiva === '40a49' && (id < 40 || id > 49)) return false;
+                if (filtroFaixaAtiva === '50a59' && (id < 50 || id > 59)) return false;
+                if (filtroFaixaAtiva === '60a69' && (id < 60 || id > 69)) return false;
+                if (filtroFaixaAtiva === '70mais' && id < 70) return false;
+            }
+            return true;
+        }
+
+        // Função de cor do mapa de calor de bairros
+        function getCorPorCasos(casos) {
+            if (casos >= 15) return '#881337'; // Vinho profundo
+            if (casos >= 10) return '#e11d48'; // Vermelho intenso
+            if (casos >= 6)  return '#f97316'; // Laranja forte
+            if (casos >= 3)  return '#facc15'; // Amarelo
+            if (casos >= 1)  return '#4ade80'; // Verde suave
+            return '#334155'; // Cinza escuro neutro quando 0
+        }
+
+        function aplicarFiltros() {
+            if (!bairrosGeoJSON) return;
+
+            const dadosFiltrados = rawData.filter(atendeFiltros);
+            atualizarVisualizacao(dadosFiltrados);
+            atualizarKPIs(dadosFiltrados);
+        }
+
+        function renderizarListaBairros() {
+            const listEl = document.getElementById('listaTopBairros');
+            listEl.innerHTML = '';
+
+            const filtrados = listaBairrosAtual.filter(([bairro]) => 
+                !buscaBairroTexto || bairro.toLowerCase().includes(buscaBairroTexto)
+            );
+
+            if (filtrados.length === 0) {
+                listEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px;">Nenhum bairro encontrado.</div>';
+                return;
+            }
+
+            filtrados.forEach(([bairro, count]) => {
+                const item = document.createElement('div');
+                item.className = 'bairro-item';
+                item.innerHTML = `
+                    <span class="bairro-name" title="${bairro}">${bairro}</span>
+                    <span class="bairro-count-badge">${count} ${count > 1 ? 'casos' : 'caso'}</span>
+                `;
+                item.onclick = () => focarBairro(bairro);
+                listEl.appendChild(item);
+            });
+        }
+
+        function atualizarKPIs(dados) {
+            document.getElementById('kpiTotal').innerText = dados.length;
+            
+            if (dados.length > 0) {
+                const mediaIdade = (dados.reduce((acc, cur) => acc + cur.idade, 0) / dados.length).toFixed(1);
+                document.getElementById('kpiIdade').innerHTML = `${mediaIdade} <small style="font-size:13px; font-weight:500;">anos</small>`;
+                
+                const custo = dados.reduce((acc, cur) => acc + cur.valor, 0);
+                document.getElementById('kpiCusto').innerText = `R$ ${custo.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+
+                const bairrosSet = new Set(dados.map(d => d.bairro).filter(Boolean));
+                document.getElementById('kpiBairros').innerText = bairrosSet.size;
+
+                const contagem = {};
+                dados.forEach(d => {
+                    if (d.bairro) {
+                        contagem[d.bairro] = (contagem[d.bairro] || 0) + 1;
+                    }
+                });
+                listaBairrosAtual = Object.entries(contagem).sort((a, b) => b[1] - a[1]);
+                renderizarListaBairros();
+            } else {
+                document.getElementById('kpiIdade').innerText = '0';
+                document.getElementById('kpiCusto').innerText = 'R$ 0';
+                document.getElementById('kpiBairros').innerText = '0';
+                listaBairrosAtual = [];
+                renderizarListaBairros();
+            }
+        }
+
+        function focarBairro(nomeBairro) {
+            // Procurar a layer correspondente nos polígonos
+            let layerEncontrada = null;
+            if (bairrosLayer) {
+                bairrosLayer.eachLayer(l => {
+                    if (l.feature && l.feature.properties && l.feature.properties.bairro === nomeBairro) {
+                        layerEncontrada = l;
+                    }
+                });
+            }
+
+            if (layerEncontrada) {
+                map.flyToBounds(layerEncontrada.getBounds(), { duration: 1.2, maxZoom: 15 });
+                layerEncontrada.openPopup();
+            } else {
+                const pontos = rawData.filter(d => d.bairro === nomeBairro);
+                if (pontos.length > 0) {
+                    const latAvg = pontos.reduce((acc, p) => acc + p.lat, 0) / pontos.length;
+                    const lngAvg = pontos.reduce((acc, p) => acc + p.lng, 0) / pontos.length;
+                    map.flyTo([latAvg, lngAvg], 15, { duration: 1.2 });
+                }
+            }
+        }
+
+        function atualizarVisualizacao(dados) {
+            // Remover camadas existentes
+            if (bairrosLayer && map.hasLayer(bairrosLayer)) map.removeLayer(bairrosLayer);
+            if (heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+            if (clusterGroup && map.hasLayer(clusterGroup)) map.removeLayer(clusterGroup);
+
+            // Contagem de casos e métricas por bairro de acordo com os filtros
+            const statsBairrosFiltrados = {};
+            dados.forEach(d => {
+                if (!statsBairrosFiltrados[d.bairro]) {
+                    statsBairrosFiltrados[d.bairro] = {
+                        casos: 0,
+                        idades: [],
+                        custo: 0,
+                        anos: new Set()
+                    };
+                }
+                statsBairrosFiltrados[d.bairro].casos += 1;
+                statsBairrosFiltrados[d.bairro].idades.push(d.idade);
+                statsBairrosFiltrados[d.bairro].custo += d.valor;
+                statsBairrosFiltrados[d.bairro].anos.add(d.ano);
+            });
+
+            const totalFiltrado = dados.length || 1;
+
+            // 1. Camada de Bairros com Fronteiras Desenhadas e Preenchimento Térmico
+            bairrosLayer = L.geoJSON(bairrosGeoJSON, {
+                style: function(feature) {
+                    const nome = feature.properties.bairro;
+                    const bStats = statsBairrosFiltrados[nome];
+                    const numCasos = bStats ? bStats.casos : 0;
+                    const temCasos = numCasos > 0;
+
+                    return {
+                        color: temCasos ? '#ffffff' : '#64748b',
+                        weight: temCasos ? 1.5 : 0.8,
+                        opacity: temCasos ? 0.85 : 0.4,
+                        fillColor: getCorPorCasos(numCasos),
+                        fillOpacity: temCasos ? 0.65 : 0.15
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    const nome = feature.properties.bairro;
+                    const bStats = statsBairrosFiltrados[nome];
+                    const numCasos = bStats ? bStats.casos : 0;
+                    const pct = ((numCasos / totalFiltrado) * 100).toFixed(1);
+                    const idadeM = bStats && bStats.idades.length ? (bStats.idades.reduce((a,b)=>a+b,0)/numCasos).toFixed(1) : '-';
+                    const custoLoc = bStats ? bStats.custo : 0;
+                    const anosLista = bStats ? [...bStats.anos].sort().join(', ') : '-';
+
+                    // Tooltip ao passar o mouse
+                    layer.bindTooltip(`
+                        <div>
+                            <strong>${nome}</strong><br>
+                            <span style="color:#fb7185;">${numCasos} ${numCasos === 1 ? 'caso' : 'casos'}</span> (${pct}%)
+                        </div>
+                    `, { className: 'bairro-tooltip', sticky: true });
+
+                    // Popup ao clicar
+                    const popupHtml = `
+                        <div class="popup-card">
+                            <div class="popup-header">
+                                <span class="popup-tag">Bairro de Rio Claro</span>
+                                <div class="popup-title">${nome}</div>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Total de Internações:</span>
+                                <span class="popup-value" style="color:#fb7185;font-weight:700;font-size:14px;">${numCasos} ${numCasos === 1 ? 'caso' : 'casos'}</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Participação na Cidade:</span>
+                                <span class="popup-value">${pct}% do total</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Média de Idade:</span>
+                                <span class="popup-value">${idadeM} anos</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Anos Registrados:</span>
+                                <span class="popup-value">${anosLista}</span>
+                            </div>
+                            <div class="popup-row" style="margin-bottom:0;">
+                                <span class="popup-label">Valor SUS Total:</span>
+                                <span class="popup-value">R$ ${custoLoc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                    `;
+                    layer.bindPopup(popupHtml);
+
+                    // Efeitos de Hover
+                    layer.on({
+                        mouseover: function(e) {
+                            const l = e.target;
+                            l.setStyle({
+                                weight: 3,
+                                color: '#fb7185',
+                                fillOpacity: 0.85
+                            });
+                            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                                l.bringToFront();
+                            }
+                        },
+                        mouseout: function(e) {
+                            bairrosLayer.resetStyle(e.target);
+                        }
+                    });
+                }
+            });
+
+            // 2. Heatmap Contínuo de Pontos
+            const heatData = dados.map(d => [d.lat, d.lng, 0.85]);
+            heatLayer = L.heatLayer(heatData, {
+                radius: 26,
+                blur: 16,
+                maxZoom: 16,
+                max: 1.0,
+                gradient: {
+                    0.2: '#0055ff',
+                    0.4: '#00ffee',
+                    0.6: '#33ff33',
+                    0.8: '#ffee00',
+                    1.0: '#ff0044'
+                }
+            });
+
+            // 3. Um cluster individual por bairro, sem a fusão automática no centro.
+            // O MarkerCluster agrupava CEPs próximos e os CEPs com coordenada padrão
+            // acabavam formando um único círculo central. Agora a agregação é explícita
+            // e cada círculo é posicionado no bairro correspondente.
+            clusterGroup = L.layerGroup();
+            const bairrosComCasos = {};
+            dados.forEach(d => {
+                const chave = normalizarBairro(d.bairro);
+                if (!bairrosComCasos[chave]) {
+                    bairrosComCasos[chave] = { bairro: d.bairro, casos: [] };
+                }
+                bairrosComCasos[chave].casos.push(d);
+            });
+
+            Object.values(bairrosComCasos).forEach(loc => {
+                const coordenada = coordenadasClusterPorBairro.get(normalizarBairro(loc.bairro));
+                // Não posiciona um bairro sem coordenada validada em local arbitrário.
+                if (!coordenada) return;
+                const count = loc.casos.length;
+                const idades = loc.casos.map(c => c.idade);
+                const idadeMedia = (idades.reduce((a, b) => a + b, 0) / count).toFixed(0);
+                const idadeMinima = Math.min(...idades);
+                const idadeMaxima = Math.max(...idades);
+                const anos = [...new Set(loc.casos.map(c => c.ano))].sort().join(', ');
+                const casosPorAno = loc.casos.reduce((acumulado, caso) => {
+                    acumulado[caso.ano] = (acumulado[caso.ano] || 0) + 1;
+                    return acumulado;
+                }, {});
+                const casosPorAnoTexto = Object.entries(casosPorAno)
+                    .sort(([anoA], [anoB]) => anoA.localeCompare(anoB))
+                    .map(([ano, total]) => `${ano}: ${total}`)
+                    .join(' · ');
+                const custoLoc = loc.casos.reduce((a, b) => a + b.valor, 0);
+
+                const popupHtml = `
+                    <div class="popup-card">
+                        <div class="popup-header">
+                            <span class="popup-tag">${loc.bairro || 'Rio Claro'}</span>
+                            <div class="popup-title">Cluster do bairro</div>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Total de Internações:</span>
+                            <span class="popup-value" style="color:#fb7185;font-weight:700;">${count} ${count > 1 ? 'casos' : 'caso'}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Idade Média:</span>
+                            <span class="popup-value">${idadeMedia} anos</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Faixa de Idade:</span>
+                            <span class="popup-value">${idadeMinima} a ${idadeMaxima} anos</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Anos Registrados:</span>
+                            <span class="popup-value">${anos}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Casos por Ano:</span>
+                            <span class="popup-value">${casosPorAnoTexto}</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Valor SUS Total:</span>
+                            <span class="popup-value">R$ ${custoLoc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div class="popup-row" style="margin-bottom:0;">
+                            <span class="popup-label">CID Principal:</span>
+                            <span class="popup-value" style="font-size:11px;">${loc.casos[0].cid} (${loc.casos[0].cid_desc})</span>
+                        </div>
+                    </div>
+                `;
+
+                const marker = L.circleMarker([
+                    coordenada.latitude_cluster,
+                    coordenada.longitude_cluster
+                ], {
+                    radius: Math.min(7 + count * 2.5, 18),
+                    fillColor: '#f43f5e',
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 0.9,
+                    fillOpacity: 0.85
+                }).bindPopup(popupHtml);
+
+                clusterGroup.addLayer(marker);
+            });
+
+            atualizarCamadas();
+        }
+
+        function atualizarCamadas() {
+            const showBairros = document.getElementById('toggleBairros').checked;
+            const showCluster = document.getElementById('toggleClusters').checked;
+            const showHeat = document.getElementById('toggleHeatmap').checked;
+            const showMunicipio = document.getElementById('toggleMunicipio').checked;
+
+            if (showBairros) {
+                if (bairrosLayer && !map.hasLayer(bairrosLayer)) map.addLayer(bairrosLayer);
+            } else {
+                if (bairrosLayer && map.hasLayer(bairrosLayer)) map.removeLayer(bairrosLayer);
+            }
+
+            if (showCluster) {
+                if (clusterGroup && !map.hasLayer(clusterGroup)) map.addLayer(clusterGroup);
+            } else {
+                if (clusterGroup && map.hasLayer(clusterGroup)) map.removeLayer(clusterGroup);
+            }
+
+            if (showHeat) {
+                if (heatLayer && !map.hasLayer(heatLayer)) map.addLayer(heatLayer);
+            } else {
+                if (heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+            }
+
+            if (showMunicipio) {
+                if (municipioLayer && !map.hasLayer(municipioLayer)) map.addLayer(municipioLayer);
+            } else {
+                if (municipioLayer && map.hasLayer(municipioLayer)) map.removeLayer(municipioLayer);
+            }
+        }
+
+        // Carregar os polígonos dos bairros antes da primeira renderização.
+        fetch('bairros_rio_claro_21_bairros.geojson')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Não foi possível carregar os bairros: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(geojson => {
+                bairrosGeoJSON = geojson;
+                aplicarFiltros();
+            })
+            .catch(error => console.error(error));
+    </script>
+</body>
+</html>
